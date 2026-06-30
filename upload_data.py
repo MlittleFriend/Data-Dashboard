@@ -76,6 +76,7 @@ def fetch_finance_news(limit=5):
                 "id": item.get("id"),
                 "publish_time": item.get("create_time"),
                 "content": item.get("rich_text", "").strip(),
+                "url": item.get("docurl", "").strip(),
                 "source": "新浪财经 7×24",
                 "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             })

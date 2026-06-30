@@ -30,12 +30,24 @@ df, df_news = load_data()
 if not df_news.empty:
     news_items = []
     for _, row in df_news.iterrows():
-        time_str = row.get("publish_time", "")
         content = row.get("content", "")
-        if time_str:
-            news_items.append(f"<b>[{time_str}]</b> {content}")
+        url = row.get("url", "")
+        time_str = row.get("publish_time", "")
+
+        # 如果有链接，把整条标题包裹成可点击链接；没有链接则纯文本展示
+        if url:
+            item_html = (
+                f'<a href="{url}" target="_blank" '
+                f'style="color: #856404; text-decoration: none; font-weight: bold;">'
+                f'⚠️ {content}</a>'
+            )
         else:
-            news_items.append(content)
+            item_html = f"⚠️ {content}"
+
+        if time_str:
+            news_items.append(f"<b>[{time_str}]</b> {item_html}")
+        else:
+            news_items.append(item_html)
 
     news_html = "&nbsp;&nbsp;&nbsp;&nbsp;🔥&nbsp;".join(news_items)
 
