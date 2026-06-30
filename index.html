@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的数据可视化看板</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 30px; background-color: #f4f6f9; }
+        h1 { text-align: center; color: #1f2937; margin-bottom: 30px; }
+        #chart-container { width: 85%; height: 500px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    </style>
+</head>
+<body>
+
+    <h1>📊 每日 Excel 数据联动看板</h1>
+    <div id="chart-container"></div>
+
+    <script>
+        // 1. 初始化图表
+        var chartDom = document.getElementById('chart-container');
+        var myChart = echarts.init(chartDom);
+
+        // 2. 从你的 Python 后端请求数据
+        fetch('http://127.0.0.1:8000/api/sales')
+            .then(response => response.json())
+            .then(data => {
+                // 3. 解析数据：把后端传来的 AA, BB, CC 提取成数组
+                var xAxisData = data.map(item => item.AA); // X轴使用 AA 列
+                var seriesBB = data.map(item => item.BB);   // 第一条线使用 BB 列
+                var seriesCC = data.map(item => item.CC);   // 第二条线使用 CC 列
+
+                // 4. 配置 ECharts 图表样式
+                var option = {
+                    title: { text: '数据趋势对比图', left: 'left' },
+                    tooltip: { trigger: 'axis' },
+                    legend: { data: ['指标 BB', '指标 CC'], right: 'center' },
+                    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xAxisData,
+                        boundaryGap: false
+                    },
+                    yAxis: { type: 'value' },
+                    series: [
+                        {
+                            name: '指标 BB',
+                            data: seriesBB,
+                            type: 'line',
+                            smooth: true,
+                            color: '#3b82f6', // 蓝色
+                            lineStyle: { width: 3 }
+                        },
+                        {
+                            name: '指标 CC',
+                            data: seriesCC,
+                            type: 'line',
+                            smooth: true,
+                            color: '#10b981', // 绿色
+                            lineStyle: { width: 3 }
+                        }
+                    ]
+                };
+
+                // 5. 让图表显示出来
+                myChart.setOption(option);
+            })
+            .catch(error => {
+                console.error('获取后端数据失败了，请检查后端 main.py 是否在运行:', error);
+            });
+    </script>
+</body>
+</html>
