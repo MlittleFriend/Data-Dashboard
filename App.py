@@ -14,11 +14,11 @@ def load_data():
     df_records = pd.read_sql_query("SELECT * FROM sales_records", conn)
     try:
         df_news = pd.read_sql_query(
-            "SELECT content, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 5",
+            "SELECT content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 5",
             conn,
         )
     except Exception:
-        df_news = pd.DataFrame(columns=["content", "publish_time"])
+        df_news = pd.DataFrame(columns=["content", "url", "publish_time"])
     conn.close()
     return df_records, df_news
 
