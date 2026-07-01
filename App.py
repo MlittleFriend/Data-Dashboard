@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # 1. 设置网页标题和图标
 st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
 
-# 注入深色科技风 CSS 样式以强制主体渲染
+# 注入深色科技风 CSS 样式以及滚动划入动画 JS
 st.markdown("""
 <style>
     /* 全局背景色与文字颜色 */
@@ -40,6 +40,54 @@ st.markdown("""
         background-color: #161B22 !important;
     }
 </style>
+
+<script>
+    (function() {
+        try {
+            const parentDoc = window.parent.document;
+            const styleId = "scroll-slide-up-style";
+            if (!parentDoc.getElementById(styleId)) {
+                const style = parentDoc.createElement("style");
+                style.id = styleId;
+                style.innerHTML = `
+                    .scroll-slide-up {
+                        opacity: 0 !important;
+                        transform: translateY(20px) !important;
+                        transition: opacity 1.0s ease-out, transform 1.0s ease-out !important;
+                    }
+                    .scroll-slide-up.active {
+                        opacity: 1 !important;
+                        transform: translateY(0) !important;
+                    }
+                `;
+                parentDoc.head.appendChild(style);
+            }
+            
+            const applyScrollAnimation = () => {
+                const targets = parentDoc.querySelectorAll('[data-testid="stPlotlyChart"], div[data-testid="stExpander"]');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('active');
+                        }
+                    });
+                }, { threshold: 0.1 });
+                
+                targets.forEach(t => {
+                    if (!t.classList.contains('scroll-slide-up')) {
+                        t.classList.add('scroll-slide-up');
+                        observer.observe(t);
+                    }
+                });
+            };
+            
+            applyScrollAnimation();
+            setInterval(applyScrollAnimation, 1000);
+        } catch (e) {
+            console.error("Scroll slide-up animation injection failed:", e);
+        }
+    })();
+</script>
 """, unsafe_allow_html=True)
 
 st.title("📊 宏观经济数据联动看板")
@@ -225,7 +273,7 @@ if not df_cpi_compare.empty:
     )
     fig_cpi.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
     fig_cpi.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
-    st.plotly_chart(fig_cpi, use_container_width=True)
+    st.plotly_chart(fig_cpi, use_container_width=True, config={'staticPlot': True})
 else:
     st.write("暂无CPI对比数据")
 
@@ -258,7 +306,7 @@ if not df_cat.empty:
     )
     fig_bar.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
     fig_bar.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
-    st.plotly_chart(fig_bar, use_container_width=True)
+    st.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
 else:
     st.write("暂无分项数据")
 
@@ -291,7 +339,7 @@ if not df_coal_prices.empty:
     )
     fig_coal.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
     fig_coal.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
-    st.plotly_chart(fig_coal, use_container_width=True)
+    st.plotly_chart(fig_coal, use_container_width=True, config={'staticPlot': True})
 else:
     st.write("暂无煤炭价格数据")
 
@@ -352,12 +400,13 @@ else:
 
 # 8. 展示下方的数据表格
 st.subheader("📋 原始数据明细")
-tab1, tab2, tab3, tab4 = st.tabs(["📈 CPI同比走势", "📊 核心分项当月同比", "📈 CPI与核心CPI对比", "📊 动力煤与焦煤价格"])
-with tab1:
-    st.dataframe(df_trend, use_container_width=True)
-with tab2:
-    st.dataframe(df_cat, use_container_width=True)
-with tab3:
-    st.dataframe(df_cpi_compare, use_container_width=True)
-with tab4:
-    st.dataframe(df_coal_prices, use_container_width=True)
+with st.expander("查看/隐藏 原始投研数据集", expanded=False):
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 CPI同比走势", "📊 核心分项当月同比", "📈 CPI与核心CPI对比", "📊 动力煤与焦煤价格"])
+    with tab1:
+        st.dataframe(df_trend, use_container_width=True)
+    with tab2:
+        st.dataframe(df_cat, use_container_width=True)
+    with tab3:
+        st.dataframe(df_cpi_compare, use_container_width=True)
+    with tab4:
+        st.dataframe(df_coal_prices, use_container_width=True)
