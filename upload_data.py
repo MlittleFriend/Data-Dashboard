@@ -1,168 +1,136 @@
-import sys
-
-# 将标准输出编码设置为 UTF-8，避免 Windows 终端下中文显示乱码
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-except Exception:
-    pass
-
-import pandas as pd
+import streamlit as st
 import sqlite3
-import requests
-import json
+import pandas as pd
+import threading
 from datetime import datetime
 
-DB_NAME = "my_data.db"
-EXCEL_FILE = "26630.xlsx"
+# 1. 设置网页标题和图标
+st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
+st.title("📊 每日 Excel 数据联动看板（云端版）")
 
 
-def import_excel_to_db():
-    """第一步：同步 Excel 基础数字数据"""
+# 2. 从数据库读取快讯、图表数据及动态宏观解析
+# 注意：我们将 ttl 调整为 5 秒，甚至在必要时显式清除，彻底击碎缓存死锁！
+@st.cache_data(ttl=5)
+def load_data(current_date_str):
+    conn = sqlite3.connect("my_data.db")
+    df_records = pd.read_sql_query("SELECT * FROM sales_records", conn)
+    
+    # A. 读取今日实时热点快讯（来自新浪 7x24）
     try:
-        df = pd.read_excel(EXCEL_FILE, sheet_name="Sheet1")
-    except ValueError:
-        df = pd.read_excel(EXCEL_FILE, sheet_name=0)
-
-    conn = sqlite3.connect(DB_NAME)
-    df.to_sql("sales_records", conn, if_exists="replace", index=False)
-    conn.close()
-    print("[Database] Excel 数字数据同步成功！")
-
-
-def fetch_finance_news(limit=5):
-    """
-    第二步：保持原样抓取新浪财经 7×24 小时公开 API 实时热点快讯
-    """
-    url = (
-        "https://zhibo.sina.com.cn/api/zhibo/feed"
-        f"?page=1&page_size={limit}&zhibo_id=152&tag_id=0&dire=1&dpc=1"
-    )
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
+        df_news = pd.read_sql_query(
+            "SELECT content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 5",
+            conn,
         )
-    }
-
+    except Exception:
+        df_news = pd.DataFrame(columns=["content", "url", "publish_time"])
+        
+    # B. 【核心修正】强制从数据库读取最新手动维护的公众号文章 HTML 文本
+    db_macro_html = None
     try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-
-        news_list = (
-            data.get("result", {})
-            .get("data", {})
-            .get("feed", {})
-            .get("list", [])
-        )
-
-        records = []
-        for item in news_list[:limit]:
-            records.append({
-                "id": item.get("id"),
-                "publish_time": item.get("create_time"),
-                "content": item.get("rich_text", "").strip(),
-                "url": item.get("docurl", "").strip(),
-                "source": "新浪财经 7×24",
-                "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            })
-
-        return records
-
-    except requests.RequestException as e:
-        print(f"新浪快讯网络请求失败：{e}")
-        return []
-    except Exception as e:
-        print(f"抓取快讯时出错：{e}")
-        return []
-
-
-def generate_and_save_macro_analysis():
-    """
-    【本地模板引擎】单独硬编码维护“陈兴团队”公众号最新文章与链接。
-    此处全中文输入，标签左侧绝无空格或缩进，彻底杜绝转义黑框 Bug！
-    """
-    # 1. 维护最新 5 篇文章的标题和真实的微信超链接
-    # 未来陈兴团队发布了新文章，你只需要直接在下面修改对应行的文字与 mp.weixin 链接即可！
-    link_1 = '<a href="https://mp.weixin.qq.com/s/your_actual_link_1" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">《深度 | 全球储蓄：由过剩到短缺？【华福宏观·陈兴团队】》[查看原文]</a>'
-    link_2 = '<a href="https://mp.weixin.qq.com/s/your_actual_link_2" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">《美国核心PCE价格续升——全球经济观察2026年第19期【华福宏观·陈兴团队】》[查看原文]</a>'
-    link_3 = '<a href="https://mp.weixin.qq.com/s/your_actual_link_3" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">《中央财政支出提速——2026年5月财政数据解读【陈兴团队·华福宏观】》[查看原文]</a>'
-    link_4 = '<a href="https://mp.weixin.qq.com/s/your_actual_link_4" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">《深度 | 英国养老金产品如何设计？——养老金配置系列之二【华福宏观·陈兴团队】》[查看原文]</a>'
-
-    # 2. 拼接生成结构绝对严密、内容靠左顶格的 HTML
-    dynamic_html = f'''<div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 22px; border: 1px solid #dee2e6; font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;">
-<h4 style="color:#0d6efd; margin-top:0;">🌐 一、PPI 成本传导链条与全球储蓄演变</h4>
-<p style="line-height:1.8; color:#343a40;">
-本期上游原材料价格（能源、有色金属）波动通过 PPI 向中游制造业逐步传导。结合陈兴团队发布的重磅研究成果 {link_1}，全球储蓄由过剩走向短缺的格局正对产业链定价产生深远影响。当前价格传导存在时滞与阻力，部分中下游企业利润率仍承压。
-</p>
-<h4 style="color:#0d6efd;">💧 二、全球通胀压力与央行流动性环境</h4>
-<p style="line-height:1.8; color:#343a40;">
-海外高频风险方面，最新成果 {link_2} 提示美国核心 PCE 价格持续面临上行扰动。回到国内，央行通过公开市场操作维持流动性<strong>合理充裕</strong>，短端资金利率围绕政策利率窄幅波动。在稳汇率与防资金空转的双重目标下，货币政策更强调精准滴灌。
-</p>
-<h4 style="color:#0d6efd;">📉 三、财政支出节奏与数据联动观察</h4>
-<p style="line-height:1.8; color:#343a40;">
-透视国内实体经济基本面，团队在 {link_3} 中指出中央财政支出提速特征。从看板下方 <strong>AA / BB / CC</strong> 三列的联动走势来看，短期波动与中长期趋势产生交织。若后续 BB 与 CC 剪刀差持续收窄，意味着行业内部供需关系正在得到边际改善。
-</p>
-<div style="background:#e7f3ff; border-left:4px solid #0d6efd; padding:12px 16px; border-radius:8px; margin-top:18px; color:#084298;">
-<b>💡 策略提示：</b>下方深度文字解析已精准对接陈兴团队宏观研究大盘。补充养老金行业复盘请点击参阅 {link_4}。看板分析数据更新于：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}。
-</div>
-</div>'''
-
-    # 3. 单独写入专属的数据库表 macro_analysis
-    try:
-        conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS macro_analysis (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                html_text TEXT,
-                update_time TEXT
-            )
-        """)
-        cursor.execute("DELETE FROM macro_analysis")
-        cursor.execute(
-            "INSERT INTO macro_analysis (html_text, update_time) VALUES (?, ?)",
-            (dynamic_html, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        )
-        conn.commit()
-        conn.close()
-        print("[本地渲染引擎] 成功将嵌有微信公众号链接的深度解析报告同步至数据库！")
+        # 显式检查表是否存在，并捞取最新一条记录
+        cursor.execute("SELECT html_text FROM macro_analysis ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        if row:
+            db_macro_html = row[0]
     except Exception as e:
-        print(f"[本地渲染引擎] 数据库写入失败: {e}")
-
-
-def import_news_to_db(records, table_name="text_records"):
-    """将抓取到的新浪快讯写入数据库"""
-    if not records:
-        print("\n没有获取到任何快讯，跳过写入快讯表。")
-        return
-    df = pd.DataFrame(records)
-    conn = sqlite3.connect(DB_NAME)
-    df.to_sql(table_name, conn, if_exists="replace", index=False)
+        print(f"[Frontend Sync Error] 读取公众号数据库失败，转为静态兜底: {e}")
+        
     conn.close()
-    print(f"[Database] 成功同步 {len(records)} 条实时新浪金融快讯！")
+    return df_records, df_news, db_macro_html
 
 
-def main():
-    print("=" * 50)
-    print("第一步：导入 Excel 数字数据")
-    print("=" * 50)
-    import_excel_to_db()
+# 3. 每日热点异步自动刷新机制
+def maybe_refresh_text_records():
+    try:
+        conn = sqlite3.connect("my_data.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(publish_time) FROM text_records")
+        result = cursor.fetchone()[0]
+        conn.close()
 
-    print("\n" + "=" * 50)
-    print("第二步：全自动抓取新浪快讯 & 本地同步生成宏观深度卡片")
-    print("=" * 50)
-    
-    # 1. 实时抓取新浪 7x24 小时快讯，保持滚动栏常新
-    news_records = fetch_finance_news(limit=5)
-    import_news_to_db(news_records)
-    
-    # 2. 独立运行本地模版，组装带超链接的陈兴公众号分析卡片
-    generate_and_save_macro_analysis()
+        if not result:
+            return
 
-    print("\n全自动化数据多流同步流程执行完毕！")
+        latest_date = datetime.strptime(str(result).split(" ")[0], "%Y-%m-%d").date()
+        today = datetime.now().date()
+
+        if latest_date < today:
+            records = fetch_finance_news(limit=5)
+            if records:
+                df_res = pd.DataFrame(records)
+                conn = sqlite3.connect(DB_NAME)
+                df_res.to_sql("text_records", conn, if_exists="replace", index=False)
+                conn.close()
+                load_data.clear() # 显式击碎缓存
+    except Exception:
+        pass
 
 
-if __name__ == "__main__":
-    main()
+# 启动后台探测线程
+threading.Thread(target=maybe_refresh_text_records, daemon=True).start()
+
+# 获取今天的日期作为缓存锚点
+today_str = datetime.now().strftime("%Y-%m-%d")
+
+# 每次刷新页面时，强行清空旧缓存，逼迫 Streamlit 去 my_data.db 里读取最新的公众号超链接
+st.cache_data.clear()
+df, df_news, target_macro_html = load_data(today_str)
+
+
+# 4. 今日热点快讯滚动栏（保持新浪 7x24 高频更新）
+if not df_news.empty:
+    news_items = []
+    for _, row in df_news.iterrows():
+        content = row.get("content", "")
+        url = row.get("url", "")
+        time_str = row.get("publish_time", "")
+
+        if url:
+            item_html = f'<a href="{url}" target="_blank" style="color: #856404; text-decoration: none; font-weight: bold;">⚠️ {content}</a>'
+        else:
+            item_html = f"⚠️ {content}"
+
+        if time_str:
+            news_items.append(f"<b>[{time_str}]</b> {item_html}")
+        else:
+            news_items.append(item_html)
+
+    news_html = "&nbsp;&nbsp;&nbsp;&nbsp;🔥&nbsp;".join(news_items)
+
+    ticker_html = f"""
+    <div style="background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%); border-left: 6px solid #ffc107; border-radius: 12px; padding: 14px 20px; margin-bottom: 24px; box-shadow: 0 4px 14px rgba(255, 193, 7, 0.18); font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;">
+        <div style="display: inline-block; color: #856404; font-weight: 700; font-size: 16px; margin-right: 12px; vertical-align: middle;">📰 今日热点快讯</div>
+        <marquee behavior="scroll" direction="left" scrollamount="5" style="display: inline-block; width: calc(100% - 130px); color: #5d4a00; font-size: 15px; vertical-align: middle;">{news_html}</marquee>
+    </div>
+    """
+    st.markdown(ticker_html, unsafe_allow_html=True)
+
+
+# 5. 数据趋势对比图
+st.subheader("📈 数据趋势对比图")
+st.line_chart(data=df, x="AA", y=["BB", "CC"])
+
+
+# 6. 本期宏观传导深度解析（彻底对齐：优先渲染手动维护的公众号文章链接卡片）
+with st.expander("📊 本期宏观传导深度解析", expanded=False):
+    if target_macro_html:
+        # 只要数据库里有已经组装好的公众号链接 HTML，强制顶格渲染它！
+        st.markdown(target_macro_html, unsafe_allow_html=True)
+    else:
+        # 极其严密的硬编码兜底方案（只有在数据库彻底为空时才展现）
+        fallback_html = '''<div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 22px; border: 1px solid #dee2e6; font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;">
+<h4 style="color:#0d6efd; margin-top:0;">🌐 一、PPI 成本传导链条</h4>
+<p style="line-height:1.8; color:#343a40;">本期上游原材料价格波动通过 PPI 向中游制造业逐步传导。由于下游需求仍处于温和修复阶段，部分中下游企业利润率承压。</p>
+<h4 style="color:#0d6efd;">💧 二、央行流动性环境</h4>
+<p style="line-height:1.8; color:#343a40;">央行通过公开市场操作维持流动性合理充裕，短端资金利率围绕政策利率窄幅波动。</p>
+<h4 style="color:#0d6efd;">📉 三、数据联动观察</h4>
+<p style="line-height:1.8; color:#343a40;">从本表 AA / BB / CC 三列的走势来看，短期波动与中长期趋势出现分化。若后续剪刀差持续收窄，意味着供需改善。</p>
+</div>'''
+        st.markdown(fallback_html, unsafe_allow_html=True)
+
+
+# 7. 展示下方的数据表格
+st.subheader("📋 原始数据明细")
+st.dataframe(df, use_container_width=True)
