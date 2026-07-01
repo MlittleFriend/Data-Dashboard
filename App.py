@@ -72,7 +72,8 @@ def maybe_refresh_text_records():
         print(f"[Auto Refresh] failed: {e}")
 
 
-# 保证每次页面被打开或刷新时，都会在后台动态探测一次是否需要更新	hreading.Thread(target=maybe_refresh_text_records, daemon=True).start()
+# 保证每次页面被打开或刷新时，都会在后台动态探测一次是否需要更新
+threading.Thread(target=maybe_refresh_text_records, daemon=True).start()
 
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
