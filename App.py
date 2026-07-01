@@ -11,7 +11,8 @@ st.title("📊 每日 Excel 数据联动看板（云端版）")
 
 
 # 2. 从数据库读取快讯与图表数据
-@st.cache_data(ttl="1h")
+#    显式设置 ttl=3600（1 小时），防止 Streamlit 永久缓存旧数据
+@st.cache_data(ttl=3600)
 def load_data():
     conn = sqlite3.connect("my_data.db")
     df_records = pd.read_sql_query("SELECT * FROM sales_records", conn)
@@ -128,7 +129,8 @@ st.line_chart(data=df, x="AA", y=["BB", "CC"])
 
 
 # 6. 本期宏观传导深度解析（默认收起）
-#    使用 st.markdown + unsafe_allow_html=True 强制渲染 HTML/CSS，避免标签被转义为文本
+#    强制使用 st.markdown(..., unsafe_allow_html=True) 渲染纯 HTML/CSS，
+#    确保 <h4>、<p>、<div> 及内联样式（如 #0d6efd 蓝色左边框）不被转义为文本。
 with st.expander("📊 本期宏观传导深度解析", expanded=False):
     macro_html = """
     <div style="
