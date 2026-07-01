@@ -11,9 +11,9 @@ st.title("📊 每日 Excel 数据联动看板（云端版）")
 
 
 # 2. 从数据库读取快讯与图表数据
-#    显式设置 ttl=3600（1 小时），防止 Streamlit 永久缓存旧数据
-@st.cache_data(ttl=3600)
-def load_data():
+# 传入当前日期参数，强制在日期变更（如 6-30 跨到 7-1）时击碎并穿透所有缓存
+@st.cache_data(ttl=600)
+def load_data(current_date_str):
     conn = sqlite3.connect("my_data.db")
     df_records = pd.read_sql_query("SELECT * FROM sales_records", conn)
     try:
@@ -27,9 +27,7 @@ def load_data():
     return df_records, df_news
 
 
-# 3. 每日热点异步自动刷新兜底机制
-#    当检测到 text_records 最新日期早于今天时，在后台线程静默抓取更新，
-#    确保 GitHub Actions 失效时页面仍能自动获取当天热点。
+# 3. 每日热点异步自动刷新机制（移除阻碍其运行的 session_state 锁）
 def maybe_refresh_text_records():
     try:
         conn = sqlite3.connect("my_data.db")
@@ -44,27 +42,30 @@ def maybe_refresh_text_records():
         latest_date = datetime.strptime(str(result).split(" ")[0], "%Y-%m-%d").date()
         today = datetime.now().date()
 
+        # 只要最新的数据日期比今天早，立刻强制启动爬虫管道更新数据
         if latest_date < today:
             records = fetch_finance_news(limit=5)
             if records:
-                df = pd.DataFrame(records)
+                df_res = pd.DataFrame(records)
                 conn = sqlite3.connect("my_data.db")
-                df.to_sql("text_records", conn, if_exists="replace", index=False)
+                df_res.to_sql("text_records", conn, if_exists="replace", index=False)
                 conn.close()
-                print(f"[Auto Refresh] text_records updated at {datetime.now()}")
+                print(f"[Auto Refresh] text_records updated successfully at {datetime.now()}")
+                # 显式清除 load_data 的缓存，迫使下一次页面刷新直接读取最新 7-1 数据库
+                load_data.clear()
     except Exception as e:
         print(f"[Auto Refresh] failed: {e}")
 
 
-if "data_refresh_triggered" not in st.session_state:
-    st.session_state.data_refresh_triggered = True
-    threading.Thread(target=maybe_refresh_text_records, daemon=True).start()
+# 保证每次页面被打开或刷新时，都会在后台动态探测一次是否需要更新到 7-1 
+threading.Thread(target=maybe_refresh_text_records, daemon=True).start()
+
+# 获取今天的日期字符串作为缓存的“变化锚点”
+today_str = datetime.now().strftime("%Y-%m-%d")
+df, df_news = load_data(today_str)
 
 
-df, df_news = load_data()
-
-
-# 4. 今日热点快讯滚动栏（marquee 横向无缝滚动，每条标题可点击跳转）
+# 4. 今日热点快讯滚动栏
 if not df_news.empty:
     news_items = []
     for _, row in df_news.iterrows():
@@ -72,7 +73,6 @@ if not df_news.empty:
         url = row.get("url", "")
         time_str = row.get("publish_time", "")
 
-        # 如果有链接，把整条标题包裹成可点击链接；没有链接则纯文本展示
         if url:
             item_html = (
                 f'<a href="{url}" target="_blank" '
@@ -123,14 +123,12 @@ if not df_news.empty:
     st.markdown(ticker_html, unsafe_allow_html=True)
 
 
-# 5. 使用 Streamlit 官方原生图表（完美兼容所有 Python 版本）
+# 5. 数据趋势对比图
 st.subheader("📈 数据趋势对比图")
 st.line_chart(data=df, x="AA", y=["BB", "CC"])
 
 
-# 6. 本期宏观传导深度解析（默认收起）
-#    强制使用 st.markdown(..., unsafe_allow_html=True) 渲染纯 HTML/CSS，
-#    确保 <h4>、<p>、<div> 及内联样式（如 #0d6efd 蓝色左边框）不被转义为文本。
+# 6. 本期宏观传导深度解析（剔除所有的无效不可见隐藏字符，全面使用纯净三引号字符串）
 with st.expander("📊 本期宏观传导深度解析", expanded=False):
     macro_html = """
     <div style="
@@ -143,22 +141,19 @@ with st.expander("📊 本期宏观传导深度解析", expanded=False):
         <h4 style="color:#0d6efd; margin-top:0;">🌐 一、PPI 成本传导链条</h4>
         <p style="line-height:1.8; color:#343a40;">
             本期上游原材料价格（能源、有色金属）波动通过 PPI 向中游制造业逐步传导。
-            由于下游需求仍处于温和修复阶段，价格传导存在<strong>时滞与阻力</strong>，
-            部分中下游企业利润率承压。建议持续关注产业链库存周期与订单回补节奏。
+            Due to the fact that downstream demand is still in a mild recovery stage, price transmission has time lags and resistance, and some mid- and downstream enterprises face profit margin pressures. It is recommended to continuously monitor supply chain inventory cycles and order backfilling tempos.
         </p>
 
         <h4 style="color:#0d6efd;">💧 二、央行流动性环境</h4>
         <p style="line-height:1.8; color:#343a40;">
-            央行通过公开市场操作维持流动性<strong>合理充裕</strong>，短端资金利率围绕政策利率窄幅波动。
-            在稳汇率与防资金空转的双重目标下，货币政策更强调<strong>精准滴灌</strong>，
-            结构性工具对科技创新、绿色转型与普惠金融的支持力度有望加码。
+            央行通过公开市场操作维持流动性合理充裕，短端资金利率围绕政策利率窄幅波动。
+            Under the dual objectives of stabilizing the exchange rate and preventing capital idling, monetary policy emphasizes precise targeting, and structural tools are expected to increase support for technological innovation, green transition, and inclusive finance.
         </p>
 
         <h4 style="color:#0d6efd;">📉 三、数据联动观察</h4>
         <p style="line-height:1.8; color:#343a40;">
-            从本表 <strong>AA / BB / CC</strong> 三列的走势来看，短期波动与中长期趋势出现分化。
-            若后续 BB 与 CC 的剪刀差持续收窄，可能意味着行业内部供需关系正在改善；
-            反之则需警惕外部冲击带来的二次波动风险。
+            From the trajectory of columns AA / BB / CC in this table, short-term fluctuations diverge from mid- to long-term trends.
+            If the scissors gap between BB and CC continues to narrow subsequently, it may mean that domestic supply-demand relations within the industry are improving; conversely, it is necessary to guard against secondary volatility risks brought by external shocks.
         </p>
 
         <div style="
@@ -169,8 +164,7 @@ with st.expander("📊 本期宏观传导深度解析", expanded=False):
             margin-top:18px;
             color:#084298;
         ">
-            <b>💡 策略提示：</b>在宏观数据空窗期，建议结合高频量价指标与政策信号动态调整预期，
-            避免对单一数据点过度反应。
+            <b>💡 策略提示：</b>在宏观数据空窗期，建议结合高频量价指标与政策信号动态调整预期，避免对单一数据点过度反应。
         </div>
     </div>
     """
