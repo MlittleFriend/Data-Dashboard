@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Send HTTP request to wake up Streamlit app
         run: |
-          curl -I https://your-app-subdomain.streamlit.app
+          curl -I https://data-dashboard-4aa8egslexarg4fuezw2pk.streamlit.app/
