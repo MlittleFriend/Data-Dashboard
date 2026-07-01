@@ -5,6 +5,7 @@ import threading
 from datetime import datetime
 from upload_data import fetch_finance_news
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # 1. 设置网页标题和图标
 st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
@@ -266,6 +267,7 @@ if not df_cpi_compare.empty:
         template="plotly_dark",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
+        height=450,
         margin=dict(l=10, r=10, t=10, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         hovermode="x unified",
@@ -300,6 +302,7 @@ if not df_cat.empty:
         template="plotly_dark",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
+        height=450,
         margin=dict(l=10, r=10, t=10, b=10),
         hovermode="x",
         transition=dict(duration=800, easing="cubic-in-out")
@@ -313,32 +316,58 @@ else:
 # 3. 动力煤与焦煤现货价格对比 (独占一行)
 st.markdown("##### 📊 动力煤与焦煤现货价格对比")
 if not df_coal_prices.empty:
-    fig_coal = go.Figure()
-    fig_coal.add_trace(go.Scatter(
-        x=df_coal_prices["date"],
-        y=df_coal_prices["dlm_price"],
-        mode="lines",
-        name="动力煤价格 (元/吨)",
-        line=dict(color="#2ca02c", width=2.5)
-    ))
+    fig_coal = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # 焦煤价格 -> 左 Y 轴 (secondary_y=False)
     fig_coal.add_trace(go.Scatter(
         x=df_coal_prices["date"],
         y=df_coal_prices["jm_price"],
         mode="lines",
         name="焦煤价格 (元/吨)",
         line=dict(color="#9467bd", width=2.5)
-    ))
+    ), secondary_y=False)
+    
+    # 动力煤价格 -> 右 Y 轴 (secondary_y=True)
+    fig_coal.add_trace(go.Scatter(
+        x=df_coal_prices["date"],
+        y=df_coal_prices["dlm_price"],
+        mode="lines",
+        name="动力煤价格 (元/吨)",
+        line=dict(color="#2ca02c", width=2.5)
+    ), secondary_y=True)
+    
     fig_coal.update_layout(
         template="plotly_dark",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
+        height=450,
         margin=dict(l=10, r=10, t=10, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         hovermode="x unified",
         transition=dict(duration=800, easing="cubic-in-out")
     )
     fig_coal.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
-    fig_coal.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
+    
+    # 左 Y 轴样式 (焦煤颜色)
+    fig_coal.update_yaxes(
+        title_text="焦煤价格 (元/吨)", 
+        title_font=dict(color="#9467bd"), 
+        tickfont=dict(color="#9467bd"), 
+        secondary_y=False, 
+        showgrid=False, 
+        zeroline=False, 
+        linecolor="#30363d"
+    )
+    # 右 Y 轴样式 (动力煤颜色)
+    fig_coal.update_yaxes(
+        title_text="动力煤价格 (元/吨)", 
+        title_font=dict(color="#2ca02c"), 
+        tickfont=dict(color="#2ca02c"), 
+        secondary_y=True, 
+        showgrid=False, 
+        zeroline=False, 
+        linecolor="#30363d"
+    )
     st.plotly_chart(fig_coal, use_container_width=True, config={'staticPlot': True})
 else:
     st.write("暂无煤炭价格数据")
