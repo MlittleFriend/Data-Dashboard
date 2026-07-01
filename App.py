@@ -4,6 +4,7 @@ import pandas as pd
 import threading
 from datetime import datetime
 from upload_data import fetch_finance_news
+import plotly.graph_objects as go
 
 # 1. 设置网页标题和图标
 st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
@@ -163,10 +164,34 @@ st.subheader("📈 宏观数据多维可视化分析")
 
 col1, col2 = st.columns(2)
 with col1:
-    st.markdown("##### 📊 CPI同比与核心CPI同比走势 (来自DASHBOARD)")
+    st.markdown("##### 📊 CPI同比与核心CPI同比走势")
     if not df_cpi_compare.empty:
-        df_cpi_display = df_cpi_compare.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
-        st.line_chart(data=df_cpi_display, x="date", y=["CPI当月同比 (%)", "核心CPI当月同比 (%)"])
+        fig_cpi = go.Figure()
+        fig_cpi.add_trace(go.Scatter(
+            x=df_cpi_compare["date"],
+            y=df_cpi_compare["cpi_yoy"],
+            mode="lines",
+            name="CPI当月同比 (%)",
+            line=dict(color="#0d6efd", width=2.5)
+        ))
+        fig_cpi.add_trace(go.Scatter(
+            x=df_cpi_compare["date"],
+            y=df_cpi_compare["core_cpi_yoy"],
+            mode="lines",
+            name="核心CPI当月同比 (%)",
+            line=dict(color="#ff7f0e", width=2.5)
+        ))
+        fig_cpi.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            hovermode="x unified",
+            transition=dict(duration=800, easing="cubic-in-out")
+        )
+        fig_cpi.update_xaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
+        fig_cpi.update_yaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
+        st.plotly_chart(fig_cpi, use_container_width=True)
     else:
         st.write("暂无CPI对比数据")
 
@@ -179,19 +204,58 @@ with col2:
         categories = ["食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
         values = [float(latest_row[cat]) for cat in categories]
         
-        df_bar = pd.DataFrame({
-            "分项": categories,
-            "同比增速 (%)": values
-        })
-        st.bar_chart(data=df_bar, x="分项", y="同比增速 (%)")
+        fig_bar = go.Figure()
+        fig_bar.add_trace(go.Bar(
+            x=categories,
+            y=values,
+            name="同比增速 (%)",
+            marker_color="#0d6efd",
+            text=[f"{val:+.1f}%" for val in values],
+            textposition="auto",
+            marker=dict(line=dict(width=0))
+        ))
+        fig_bar.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=10, r=10, t=10, b=10),
+            hovermode="x",
+            transition=dict(duration=800, easing="cubic-in-out")
+        )
+        fig_bar.update_xaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
+        fig_bar.update_yaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
+        st.plotly_chart(fig_bar, use_container_width=True)
     else:
         st.write("暂无分项数据")
 
 # Stacked line chart for coal prices
-st.markdown("##### 📊 动力煤与焦煤现货价格对比 (来自DASHBOARD)")
+st.markdown("##### 📊 动力煤与焦煤现货价格对比")
 if not df_coal_prices.empty:
-    df_coal_display = df_coal_prices.rename(columns={"dlm_price": "动力煤价格 (元/吨)", "jm_price": "焦煤价格 (元/吨)"})
-    st.line_chart(data=df_coal_display, x="date", y=["动力煤价格 (元/吨)", "焦煤价格 (元/吨)"])
+    fig_coal = go.Figure()
+    fig_coal.add_trace(go.Scatter(
+        x=df_coal_prices["date"],
+        y=df_coal_prices["dlm_price"],
+        mode="lines",
+        name="动力煤价格 (元/吨)",
+        line=dict(color="#2ca02c", width=2.5)
+    ))
+    fig_coal.add_trace(go.Scatter(
+        x=df_coal_prices["date"],
+        y=df_coal_prices["jm_price"],
+        mode="lines",
+        name="焦煤价格 (元/吨)",
+        line=dict(color="#9467bd", width=2.5)
+    ))
+    fig_coal.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=10, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode="x unified",
+        transition=dict(duration=800, easing="cubic-in-out")
+    )
+    fig_coal.update_xaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
+    fig_coal.update_yaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
+    st.plotly_chart(fig_coal, use_container_width=True)
 else:
     st.write("暂无煤炭价格数据")
 
