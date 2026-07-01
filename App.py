@@ -7,6 +7,133 @@ from upload_data import fetch_finance_news
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+# 聚合聚类与自适应双 Y 轴图表生成算法
+def cluster_series_by_magnitude(df, value_cols):
+    """
+    自动对数据列的最大绝对值进行聚类分流
+    若两两之间最大绝对值比例超 1.8 且最大，则在该断层点分裂为高量级和低量级阵营
+    """
+    if not value_cols:
+        return [], []
+    max_vals = {}
+    for col in value_cols:
+        max_vals[col] = df[col].abs().max()
+    if len(value_cols) == 1:
+        return value_cols, []
+    
+    # 升序排序
+    sorted_cols = sorted(value_cols, key=lambda c: max_vals[c])
+    
+    max_gap_ratio = 1.0
+    split_idx = len(sorted_cols)
+    
+    for i in range(len(sorted_cols) - 1):
+        c1 = sorted_cols[i]
+        c2 = sorted_cols[i+1]
+        val1 = max_vals[c1]
+        val2 = max_vals[c2]
+        if val1 > 0:
+            ratio = val2 / val1
+            if ratio > 1.8 and ratio > max_gap_ratio:
+                max_gap_ratio = ratio
+                split_idx = i + 1
+                
+    if max_gap_ratio > 1.8:
+        low_cols = sorted_cols[:split_idx]
+        high_cols = sorted_cols[split_idx:]
+    else:
+        low_cols = []
+        high_cols = sorted_cols
+    return high_cols, low_cols
+
+def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y_title="", secondary_y_title=""):
+    """
+    自适应双 Y 轴多线绘制函数
+    """
+    high_cols, low_cols = cluster_series_by_magnitude(df, value_cols)
+    if not colors:
+        colors = ["#0d6efd", "#ff7f0e", "#2ca02c", "#9467bd", "#d62728", "#17becf", "#bcbd22", "#e377c2"]
+    
+    if low_cols:
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        # 挂载高量级序列在左侧主 Y 轴 (secondary_y=False)
+        for idx, col in enumerate(high_cols):
+            color = colors[idx % len(colors)]
+            fig.add_trace(go.Scatter(
+                x=df[date_col],
+                y=df[col],
+                mode="lines",
+                name=col,
+                line=dict(color=color, width=2.5)
+            ), secondary_y=False)
+            
+        # 挂载低量级序列在右侧副 Y 轴 (secondary_y=True)
+        for idx, col in enumerate(low_cols):
+            color = colors[(idx + len(high_cols)) % len(colors)]
+            fig.add_trace(go.Scatter(
+                x=df[date_col],
+                y=df[col],
+                mode="lines",
+                name=col,
+                line=dict(color=color, width=2.5)
+            ), secondary_y=True)
+            
+        left_title = primary_y_title or ", ".join(high_cols)
+        right_title = secondary_y_title or ", ".join(low_cols)
+        
+        left_color = colors[0]
+        right_color = colors[len(high_cols) % len(colors)]
+        
+        fig.update_yaxes(
+            title_text=left_title,
+            title_font=dict(color=left_color),
+            tickfont=dict(color=left_color),
+            secondary_y=False,
+            showgrid=False,
+            zeroline=False,
+            linecolor="#30363d"
+        )
+        fig.update_yaxes(
+            title_text=right_title,
+            title_font=dict(color=right_color),
+            tickfont=dict(color=right_color),
+            secondary_y=True,
+            showgrid=False,
+            zeroline=False,
+            linecolor="#30363d"
+        )
+    else:
+        fig = go.Figure()
+        for idx, col in enumerate(high_cols):
+            color = colors[idx % len(colors)]
+            fig.add_trace(go.Scatter(
+                x=df[date_col],
+                y=df[col],
+                mode="lines",
+                name=col,
+                line=dict(color=color, width=2.5)
+            ))
+        left_title = primary_y_title or ", ".join(high_cols)
+        fig.update_yaxes(
+            title_text=left_title,
+            showgrid=False,
+            zeroline=False,
+            linecolor="#30363d"
+        )
+        
+    fig.update_layout(
+        template="plotly_dark",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        height=450,
+        margin=dict(l=10, r=10, t=10, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode="x unified",
+        transition=dict(duration=800, easing="cubic-in-out")
+    )
+    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
+    return fig
+
 # 1. 设置网页标题和图标
 st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
 
@@ -248,33 +375,14 @@ st.subheader("📈 宏观数据多维可视化分析")
 # 1. CPI同比与核心CPI同比走势 (独占一行)
 st.markdown("##### 📊 CPI同比与核心CPI同比走势")
 if not df_cpi_compare.empty:
-    fig_cpi = go.Figure()
-    fig_cpi.add_trace(go.Scatter(
-        x=df_cpi_compare["date"],
-        y=df_cpi_compare["cpi_yoy"],
-        mode="lines",
-        name="CPI当月同比 (%)",
-        line=dict(color="#0d6efd", width=2.5)
-    ))
-    fig_cpi.add_trace(go.Scatter(
-        x=df_cpi_compare["date"],
-        y=df_cpi_compare["core_cpi_yoy"],
-        mode="lines",
-        name="核心CPI当月同比 (%)",
-        line=dict(color="#ff7f0e", width=2.5)
-    ))
-    fig_cpi.update_layout(
-        template="plotly_dark",
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        height=450,
-        margin=dict(l=10, r=10, t=10, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        hovermode="x unified",
-        transition=dict(duration=800, easing="cubic-in-out")
+    df_cpi_display = df_cpi_compare.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
+    fig_cpi = render_dual_axis_line_chart(
+        df_cpi_display, 
+        "date", 
+        ["CPI当月同比 (%)", "核心CPI当月同比 (%)"], 
+        colors=["#0d6efd", "#ff7f0e"],
+        primary_y_title="同比 (%)"
     )
-    fig_cpi.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
-    fig_cpi.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
     st.plotly_chart(fig_cpi, use_container_width=True, config={'staticPlot': True})
 else:
     st.write("暂无CPI对比数据")
@@ -316,57 +424,12 @@ else:
 # 3. 动力煤与焦煤现货价格对比 (独占一行)
 st.markdown("##### 📊 动力煤与焦煤现货价格对比")
 if not df_coal_prices.empty:
-    fig_coal = make_subplots(specs=[[{"secondary_y": True}]])
-    
-    # 焦煤价格 -> 左 Y 轴 (secondary_y=False)
-    fig_coal.add_trace(go.Scatter(
-        x=df_coal_prices["date"],
-        y=df_coal_prices["jm_price"],
-        mode="lines",
-        name="焦煤价格 (元/吨)",
-        line=dict(color="#9467bd", width=2.5)
-    ), secondary_y=False)
-    
-    # 动力煤价格 -> 右 Y 轴 (secondary_y=True)
-    fig_coal.add_trace(go.Scatter(
-        x=df_coal_prices["date"],
-        y=df_coal_prices["dlm_price"],
-        mode="lines",
-        name="动力煤价格 (元/吨)",
-        line=dict(color="#2ca02c", width=2.5)
-    ), secondary_y=True)
-    
-    fig_coal.update_layout(
-        template="plotly_dark",
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        height=450,
-        margin=dict(l=10, r=10, t=10, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        hovermode="x unified",
-        transition=dict(duration=800, easing="cubic-in-out")
-    )
-    fig_coal.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
-    
-    # 左 Y 轴样式 (焦煤颜色)
-    fig_coal.update_yaxes(
-        title_text="焦煤价格 (元/吨)", 
-        title_font=dict(color="#9467bd"), 
-        tickfont=dict(color="#9467bd"), 
-        secondary_y=False, 
-        showgrid=False, 
-        zeroline=False, 
-        linecolor="#30363d"
-    )
-    # 右 Y 轴样式 (动力煤颜色)
-    fig_coal.update_yaxes(
-        title_text="动力煤价格 (元/吨)", 
-        title_font=dict(color="#2ca02c"), 
-        tickfont=dict(color="#2ca02c"), 
-        secondary_y=True, 
-        showgrid=False, 
-        zeroline=False, 
-        linecolor="#30363d"
+    df_coal_display = df_coal_prices.rename(columns={"jm_price": "焦煤价格 (元/吨)", "dlm_price": "动力煤价格 (元/吨)"})
+    fig_coal = render_dual_axis_line_chart(
+        df_coal_display, 
+        "date", 
+        ["焦煤价格 (元/吨)", "动力煤价格 (元/吨)"], 
+        colors=["#9467bd", "#2ca02c"]
     )
     st.plotly_chart(fig_coal, use_container_width=True, config={'staticPlot': True})
 else:
