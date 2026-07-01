@@ -1,0 +1,15 @@
+name: Streamlit Keep Alive
+
+on:
+  schedule:
+    # 每 3 天的半夜 (UTC 00:00，北京时间早上 08:00) 自动触发一次
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # 允许在 GitHub 控制台上手动触发
+
+jobs:
+  keep_alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send HTTP request to wake up Streamlit app
+        run: |
+          curl -I https://your-app-subdomain.streamlit.app
