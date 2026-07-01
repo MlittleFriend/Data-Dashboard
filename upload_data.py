@@ -83,20 +83,21 @@ def generate_and_save_macro_analysis():
         return
 
     # 构造列表各行带日期的 HTML 超链接超文本（新窗口打开：target="_blank"）
-    link_1 = f'<span>📅 {articles[0]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[0]["url"]}" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">{articles[0]["content"]}</a>'
-    link_2 = f'<span>📅 {articles[1]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[1]["url"]}" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">{articles[1]["content"]}</a>'
-    link_3 = f'<span>📅 {articles[2]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[2]["url"]}" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">{articles[2]["content"]}</a>'
-    link_4 = f'<span>📅 {articles[3]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[3]["url"]}" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">{articles[3]["content"]}</a>'
-    link_5 = f'<span>📅 {articles[4]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[4]["url"]}" target="_blank" style="color: #0d6efd; text-decoration: underline; font-weight: bold;">{articles[4]["content"]}</a>'
+    # 深蓝科技风：日期浅灰、链接高亮浅蓝
+    link_1 = f'<span style="color: #94a3b8;">📅 {articles[0]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[0]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[0]["content"]}</a>'
+    link_2 = f'<span style="color: #94a3b8;">📅 {articles[1]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[1]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[1]["content"]}</a>'
+    link_3 = f'<span style="color: #94a3b8;">📅 {articles[2]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[2]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[2]["content"]}</a>'
+    link_4 = f'<span style="color: #94a3b8;">📅 {articles[3]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[3]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[3]["content"]}</a>'
+    link_5 = f'<span style="color: #94a3b8;">📅 {articles[4]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[4]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[4]["content"]}</a>'
 
-    # 完全顶格的模块化列表容器
-    dynamic_html = f'''<div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 22px; border: 1px solid #dee2e6; font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;">
-<h4 style="color:#0d6efd; margin-top:0; margin-bottom: 16px;">📰 我们的最新宏观研究成果（这里跟着公众号更新）</h4>
-<div style="line-height: 2.2; color: #343a40; font-size: 15px;">
-<div style="border-bottom: 1px dashed #dee2e6; padding: 6px 0;">{link_1}</div>
-<div style="border-bottom: 1px dashed #dee2e6; padding: 6px 0;">{link_2}</div>
-<div style="border-bottom: 1px dashed #dee2e6; padding: 6px 0;">{link_3}</div>
-<div style="border-bottom: 1px dashed #dee2e6; padding: 6px 0;">{link_4}</div>
+    # 完全顶格的模块化列表容器（深蓝科技风）
+    dynamic_html = f'''<div style="background: linear-gradient(135deg, #0b1a30 0%, #081325 100%); border-radius: 12px; padding: 22px; border: 1px solid #132a4a; font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;">
+<h4 style="color:#ffffff; margin-top:0; margin-bottom: 16px;">📰 我们的最新宏观研究成果（这里跟着公众号更新）</h4>
+<div style="line-height: 2.2; color: #e2e8f0; font-size: 15px;">
+<div style="border-bottom: 1px dashed #1e293b; padding: 6px 0;">{link_1}</div>
+<div style="border-bottom: 1px dashed #1e293b; padding: 6px 0;">{link_2}</div>
+<div style="border-bottom: 1px dashed #1e293b; padding: 6px 0;">{link_3}</div>
+<div style="border-bottom: 1px dashed #1e293b; padding: 6px 0;">{link_4}</div>
 <div style="padding: 6px 0;">{link_5}</div>
 </div>
 </div>'''
