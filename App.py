@@ -27,6 +27,16 @@ def load_data(current_date_str):
     except Exception:
         df_cat = pd.DataFrame(columns=["date", "食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"])
 
+    try:
+        df_cpi_compare = pd.read_sql_query("SELECT * FROM dashboard_cpi_compare", conn)
+    except Exception:
+        df_cpi_compare = pd.DataFrame(columns=["date", "cpi_yoy", "core_cpi_yoy"])
+
+    try:
+        df_coal_prices = pd.read_sql_query("SELECT * FROM dashboard_coal_prices", conn)
+    except Exception:
+        df_coal_prices = pd.DataFrame(columns=["date", "dlm_price", "jm_price"])
+
     # 2.2 顶部新浪 7x24 实时快讯
     try:
         df_news = pd.read_sql_query(
@@ -48,7 +58,7 @@ def load_data(current_date_str):
         target_macro_html = ""
 
     conn.close()
-    return df_trend, df_cat, df_news, target_macro_html
+    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_news, target_macro_html
 
 
 # 3. 每日热点异步自动刷新机制
@@ -87,7 +97,7 @@ threading.Thread(target=maybe_refresh_text_records, daemon=True).start()
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
 st.cache_data.clear()
-df_trend, df_cat, df_news, target_macro_html = load_data(today_str)
+df_trend, df_cat, df_cpi_compare, df_coal_prices, df_news, target_macro_html = load_data(today_str)
 
 
 # 5. 今日热点快讯滚动栏（marquee 横向无缝滚动，每条标题可点击跳转）
@@ -148,16 +158,20 @@ if not df_news.empty:
     st.markdown(ticker_html, unsafe_allow_html=True)
 
 
-# 6. 数据趋势对比图
-st.subheader("📈 CPI数据可视化分析")
+# 6. 数据可视化分析
+st.subheader("📈 宏观数据多维可视化分析")
 
 col1, col2 = st.columns(2)
 with col1:
-    st.markdown("##### 📊 CPI同比走势（折线图）")
-    st.line_chart(data=df_trend, x="date", y="cpi_yoy")
+    st.markdown("##### 📊 CPI同比与核心CPI同比走势 (来自DASHBOARD)")
+    if not df_cpi_compare.empty:
+        df_cpi_display = df_cpi_compare.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
+        st.line_chart(data=df_cpi_display, x="date", y=["CPI当月同比 (%)", "核心CPI当月同比 (%)"])
+    else:
+        st.write("暂无CPI对比数据")
 
 with col2:
-    st.markdown("##### 📊 核心分项当月同比（柱状图）")
+    st.markdown("##### 📊 核心分项当月同比（最新月份）")
     if not df_cat.empty:
         latest_row = df_cat.iloc[-1]
         latest_date = latest_row["date"]
@@ -172,6 +186,14 @@ with col2:
         st.bar_chart(data=df_bar, x="分项", y="同比增速 (%)")
     else:
         st.write("暂无分项数据")
+
+# Stacked line chart for coal prices
+st.markdown("##### 📊 动力煤与焦煤现货价格对比 (来自DASHBOARD)")
+if not df_coal_prices.empty:
+    df_coal_display = df_coal_prices.rename(columns={"dlm_price": "动力煤价格 (元/吨)", "jm_price": "焦煤价格 (元/吨)"})
+    st.line_chart(data=df_coal_display, x="date", y=["动力煤价格 (元/吨)", "焦煤价格 (元/吨)"])
+else:
+    st.write("暂无煤炭价格数据")
 
 
 # 7. 本期宏观传导深度解析（已平铺至主页面，移除 st.expander 折叠）
@@ -230,8 +252,12 @@ else:
 
 # 8. 展示下方的数据表格
 st.subheader("📋 原始数据明细")
-tab1, tab2 = st.tabs(["📈 CPI同比历史趋势", "📊 各分项历史数据"])
+tab1, tab2, tab3, tab4 = st.tabs(["📈 CPI同比走势", "📊 核心分项当月同比", "📈 CPI与核心CPI对比", "📊 动力煤与焦煤价格"])
 with tab1:
     st.dataframe(df_trend, use_container_width=True)
 with tab2:
     st.dataframe(df_cat, use_container_width=True)
+with tab3:
+    st.dataframe(df_cpi_compare, use_container_width=True)
+with tab4:
+    st.dataframe(df_coal_prices, use_container_width=True)

@@ -10,6 +10,8 @@ import pandas as pd
 import sqlite3
 import requests
 from datetime import datetime
+import openpyxl
+import re
 
 DB_NAME = "my_data.db"
 EXCEL_FILE = "26630.xlsx"
@@ -189,11 +191,91 @@ def import_news_to_db(records, table_name="text_records"):
     print(f"[Database] 成功拉取并保存 {len(records)} 条今日新浪金融实时快讯！")
 
 
+def import_dashboard_charts_to_db():
+    """读取 DASHBOARD 工作表中的折线图数据源区域，清洗并入库"""
+    excel_file = EXCEL_FILE
+    db_name = DB_NAME
+    
+    cpi_compare_fallback = True
+    coal_prices_fallback = True
+    cpi_compare_df = None
+    coal_prices_df = None
+    
+    try:
+        wb = openpyxl.load_workbook(excel_file, data_only=True)
+        if "DASHBOARD" in wb.sheetnames:
+            ws = wb["DASHBOARD"]
+            for chart in ws._charts:
+                if not chart.series:
+                    continue
+                first_series = chart.series[0]
+                if not first_series.val or not hasattr(first_series.val, "numRef"):
+                    continue
+                ref_formula = first_series.val.numRef.f
+                
+                if "图1，5" in ref_formula:
+                    print("[Dashboard Parser] 动态检测到 CPI 对比折线图数据源:", ref_formula)
+                    df1 = pd.read_excel(excel_file, sheet_name="图1，5")
+                    cpi_compare_df = df1.iloc[7:104, [11, 13, 14]].copy()
+                    cpi_compare_df.columns = ["date", "cpi_yoy", "core_cpi_yoy"]
+                    cpi_compare_fallback = False
+                
+                elif "图3，4" in ref_formula:
+                    print("[Dashboard Parser] 动态检测到煤炭价格折线图数据源:", ref_formula)
+                    df3 = pd.read_excel(excel_file, sheet_name="图3，4")
+                    coal_prices_df = df3.iloc[7:269, [26, 27, 28]].copy()
+                    coal_prices_df.columns = ["date", "dlm_price", "jm_price"]
+                    coal_prices_fallback = False
+    except Exception as e:
+        print(f"[Dashboard Parser] 动态解析 DASHBOARD 图表失败，将启用硬编码兜底解析: {e}")
+        
+    def parse_date(val):
+        if isinstance(val, pd.Timestamp) or hasattr(val, "strftime"):
+            return val.strftime("%Y-%m-%d")
+        try:
+            dt = pd.to_datetime(val)
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            return str(val)
+
+    if cpi_compare_fallback:
+        print("[Dashboard Parser] 启用 CPI 对比折线图兜底解析")
+        df1 = pd.read_excel(excel_file, sheet_name="图1，5")
+        cpi_compare_df = df1.iloc[7:104, [11, 13, 14]].copy()
+        cpi_compare_df.columns = ["date", "cpi_yoy", "core_cpi_yoy"]
+
+    cpi_compare_df["date"] = cpi_compare_df["date"].apply(parse_date)
+    cpi_compare_df["cpi_yoy"] = pd.to_numeric(cpi_compare_df["cpi_yoy"], errors="coerce")
+    cpi_compare_df["core_cpi_yoy"] = pd.to_numeric(cpi_compare_df["core_cpi_yoy"], errors="coerce")
+    cpi_compare_df = cpi_compare_df.dropna()
+    cpi_compare_df = cpi_compare_df.sort_values(by="date", ascending=True).reset_index(drop=True)
+
+    if coal_prices_fallback:
+        print("[Dashboard Parser] 启用煤炭价格折线图兜底解析")
+        df3 = pd.read_excel(excel_file, sheet_name="图3，4")
+        coal_prices_df = df3.iloc[7:269, [26, 27, 28]].copy()
+        coal_prices_df.columns = ["date", "dlm_price", "jm_price"]
+
+    coal_prices_df["date"] = coal_prices_df["date"].apply(parse_date)
+    coal_prices_df["dlm_price"] = pd.to_numeric(coal_prices_df["dlm_price"], errors="coerce")
+    coal_prices_df["jm_price"] = pd.to_numeric(coal_prices_df["jm_price"], errors="coerce")
+    coal_prices_df = coal_prices_df.dropna()
+    coal_prices_df = coal_prices_df[(coal_prices_df["dlm_price"] > 0) & (coal_prices_df["jm_price"] > 0)]
+    coal_prices_df = coal_prices_df.sort_values(by="date", ascending=True).reset_index(drop=True)
+
+    conn = sqlite3.connect(db_name)
+    cpi_compare_df.to_sql("dashboard_cpi_compare", conn, if_exists="replace", index=False)
+    coal_prices_df.to_sql("dashboard_coal_prices", conn, if_exists="replace", index=False)
+    conn.close()
+    print("[Database] DASHBOARD 折线图数据同步成功！")
+
+
 def main():
     print("=" * 50)
     print("🚀 开始执行全自动数据加工处理流水线...")
     print("=" * 50)
     import_excel_to_db()
+    import_dashboard_charts_to_db()
     
     # 抓取并同步顶部滚动快讯
     news_records = fetch_finance_news(limit=5)
