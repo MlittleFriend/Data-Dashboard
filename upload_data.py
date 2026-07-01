@@ -17,15 +17,44 @@ EXCEL_FILE = "26630.xlsx"
 
 def import_excel_to_db():
     """1. 同步 Excel 基础数字数据到数据库"""
-    try:
-        df = pd.read_excel(EXCEL_FILE, sheet_name="Sheet1")
-    except ValueError:
-        df = pd.read_excel(EXCEL_FILE, sheet_name=0)
+    # Parse CPI Trend (图1，5)
+    df1 = pd.read_excel(EXCEL_FILE, sheet_name="图1，5")
+    trend_data = df1.iloc[6:, [34, 35]].copy()
+    trend_data.columns = ["date", "cpi_yoy"]
+
+    def parse_date(val):
+        if isinstance(val, pd.Timestamp) or hasattr(val, "strftime"):
+            return val.strftime("%Y-%m-%d")
+        try:
+            dt = pd.to_datetime(val)
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            return str(val)
+
+    trend_data["date"] = trend_data["date"].apply(parse_date)
+    trend_data["cpi_yoy"] = pd.to_numeric(trend_data["cpi_yoy"], errors="coerce")
+    trend_data = trend_data.dropna()
+    trend_data = trend_data.sort_values(by="date", ascending=True).reset_index(drop=True)
+
+    # Parse CPI Categories (图2)
+    df2 = pd.read_excel(EXCEL_FILE, sheet_name="图2")
+    cols = [11, 13, 14, 15, 16, 17, 18, 19, 20]
+    cat_data = df2.iloc[6:, cols].copy()
+    cat_data.columns = ["date", "食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
+
+    cat_data["date"] = cat_data["date"].apply(parse_date)
+    for col in cat_data.columns[1:]:
+        cat_data[col] = pd.to_numeric(cat_data[col], errors="coerce")
+    cat_data = cat_data.dropna()
+    cat_data = cat_data.sort_values(by="date", ascending=True).reset_index(drop=True)
 
     conn = sqlite3.connect(DB_NAME)
-    df.to_sql("sales_records", conn, if_exists="replace", index=False)
+    trend_data.to_sql("cpi_trend", conn, if_exists="replace", index=False)
+    # Maintain compatibility for sales_records
+    trend_data.to_sql("sales_records", conn, if_exists="replace", index=False)
+    cat_data.to_sql("cpi_categories", conn, if_exists="replace", index=False)
     conn.close()
-    print("[Database] Excel 数字数据同步成功！")
+    print("[Database] Excel 数据切片、清洗与 SQLite 入库成功！")
 
 
 def fetch_wechat_articles():

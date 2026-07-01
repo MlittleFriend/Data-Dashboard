@@ -7,7 +7,7 @@ from upload_data import fetch_finance_news
 
 # 1. 设置网页标题和图标
 st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
-st.title("📊 数据联动看板（这里之后可以确定具体放什么数据）")
+st.title("📊 宏观经济数据联动看板")
 
 
 # 2. 从数据库读取快讯、图表数据以及宏观分析 HTML 列表
@@ -17,7 +17,15 @@ def load_data(current_date_str):
     conn = sqlite3.connect("my_data.db")
 
     # 2.1 Excel 数字数据
-    df_records = pd.read_sql_query("SELECT * FROM sales_records", conn)
+    try:
+        df_trend = pd.read_sql_query("SELECT * FROM cpi_trend", conn)
+    except Exception:
+        df_trend = pd.DataFrame(columns=["date", "cpi_yoy"])
+
+    try:
+        df_cat = pd.read_sql_query("SELECT * FROM cpi_categories", conn)
+    except Exception:
+        df_cat = pd.DataFrame(columns=["date", "食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"])
 
     # 2.2 顶部新浪 7x24 实时快讯
     try:
@@ -40,7 +48,7 @@ def load_data(current_date_str):
         target_macro_html = ""
 
     conn.close()
-    return df_records, df_news, target_macro_html
+    return df_trend, df_cat, df_news, target_macro_html
 
 
 # 3. 每日热点异步自动刷新机制
@@ -79,7 +87,7 @@ threading.Thread(target=maybe_refresh_text_records, daemon=True).start()
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
 st.cache_data.clear()
-df, df_news, target_macro_html = load_data(today_str)
+df_trend, df_cat, df_news, target_macro_html = load_data(today_str)
 
 
 # 5. 今日热点快讯滚动栏（marquee 横向无缝滚动，每条标题可点击跳转）
@@ -141,8 +149,29 @@ if not df_news.empty:
 
 
 # 6. 数据趋势对比图
-st.subheader("📈 数据趋势对比图")
-st.line_chart(data=df, x="AA", y=["BB", "CC"])
+st.subheader("📈 CPI数据可视化分析")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown("##### 📊 CPI同比走势（折线图）")
+    st.line_chart(data=df_trend, x="date", y="cpi_yoy")
+
+with col2:
+    st.markdown("##### 📊 核心分项当月同比（柱状图）")
+    if not df_cat.empty:
+        latest_row = df_cat.iloc[-1]
+        latest_date = latest_row["date"]
+        
+        categories = ["食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
+        values = [float(latest_row[cat]) for cat in categories]
+        
+        df_bar = pd.DataFrame({
+            "分项": categories,
+            "同比增速 (%)": values
+        })
+        st.bar_chart(data=df_bar, x="分项", y="同比增速 (%)")
+    else:
+        st.write("暂无分项数据")
 
 
 # 7. 本期宏观传导深度解析（已平铺至主页面，移除 st.expander 折叠）
@@ -201,4 +230,8 @@ else:
 
 # 8. 展示下方的数据表格
 st.subheader("📋 原始数据明细")
-st.dataframe(df, use_container_width=True)
+tab1, tab2 = st.tabs(["📈 CPI同比历史趋势", "📊 各分项历史数据"])
+with tab1:
+    st.dataframe(df_trend, use_container_width=True)
+with tab2:
+    st.dataframe(df_cat, use_container_width=True)
