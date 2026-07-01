@@ -91,7 +91,7 @@ def generate_and_save_macro_analysis():
 
     # 完全顶格的模块化列表容器
     dynamic_html = f'''<div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 22px; border: 1px solid #dee2e6; font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;">
-<h4 style="color:#0d6efd; margin-top:0; margin-bottom: 16px;">📰 最新宏观研究成果（更新至最后5篇）</h4>
+<h4 style="color:#0d6efd; margin-top:0; margin-bottom: 16px;">📰 我们的最新宏观研究成果</h4>
 <div style="line-height: 2.2; color: #343a40; font-size: 15px;">
 <div style="border-bottom: 1px dashed #dee2e6; padding: 6px 0;">{link_1}</div>
 <div style="border-bottom: 1px dashed #dee2e6; padding: 6px 0;">{link_2}</div>

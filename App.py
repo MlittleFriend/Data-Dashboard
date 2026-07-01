@@ -7,7 +7,7 @@ from upload_data import fetch_finance_news
 
 # 1. 设置网页标题和图标
 st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
-st.title("📊 每日 Excel 数据联动看板（云端版）")
+st.title("📊 数据联动看板（这里之后可以确定具体放什么数据）")
 
 
 # 2. 从数据库读取快讯、图表数据以及宏观分析 HTML 列表
