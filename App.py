@@ -26,7 +26,7 @@ def load_data():
 df, df_news = load_data()
 
 
-# 3. 今日热点快讯滚动栏（marquee 横向无缝滚动）
+# 3. 今日热点快讯滚动栏（marquee 横向无缝滚动，每条标题可点击跳转）
 if not df_news.empty:
     news_items = []
     for _, row in df_news.iterrows():
@@ -90,7 +90,7 @@ st.subheader("📈 数据趋势对比图")
 st.line_chart(data=df, x="AA", y=["BB", "CC"])
 
 
-# 5. 本期宏观传导深度解析（默认收起）
+# 5. 本期宏观传导深度解析（默认收起，使用 st.markdown + unsafe_allow_html=True 渲染）
 with st.expander("📊 本期宏观传导深度解析", expanded=False):
     st.markdown(
         """
