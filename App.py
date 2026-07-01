@@ -8,6 +8,40 @@ import plotly.graph_objects as go
 
 # 1. 设置网页标题和图标
 st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
+
+# 注入深色科技风 CSS 样式以强制主体渲染
+st.markdown("""
+<style>
+    /* 全局背景色与文字颜色 */
+    .stApp {
+        background-color: #0E1117 !important;
+        color: #E0E0E0 !important;
+    }
+    /* 修改常规 Markdown 文字、标题、标签颜色 */
+    .stMarkdown, p, span, label, h1, h2, h3, h4, h5, h6 {
+        color: #E0E0E0 !important;
+    }
+    /* 选项卡（st.tabs）美化 */
+    button[data-baseweb="tab"] {
+        color: #E0E0E0 !important;
+        background-color: transparent !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #0d6efd !important;
+        border-bottom-color: #0d6efd !important;
+    }
+    /* 列表/容器组件边框深色化 */
+    div[data-testid="stExpander"] {
+        background-color: #161B22 !important;
+        border: 1px solid #30363D !important;
+    }
+    /* 美化表单和表格展示 */
+    div[data-testid="stDataFrame"] {
+        background-color: #161B22 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("📊 宏观经济数据联动看板")
 
 
@@ -162,72 +196,73 @@ if not df_news.empty:
 # 6. 数据可视化分析
 st.subheader("📈 宏观数据多维可视化分析")
 
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown("##### 📊 CPI同比与核心CPI同比走势")
-    if not df_cpi_compare.empty:
-        fig_cpi = go.Figure()
-        fig_cpi.add_trace(go.Scatter(
-            x=df_cpi_compare["date"],
-            y=df_cpi_compare["cpi_yoy"],
-            mode="lines",
-            name="CPI当月同比 (%)",
-            line=dict(color="#0d6efd", width=2.5)
-        ))
-        fig_cpi.add_trace(go.Scatter(
-            x=df_cpi_compare["date"],
-            y=df_cpi_compare["core_cpi_yoy"],
-            mode="lines",
-            name="核心CPI当月同比 (%)",
-            line=dict(color="#ff7f0e", width=2.5)
-        ))
-        fig_cpi.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=10, r=10, t=10, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            hovermode="x unified",
-            transition=dict(duration=800, easing="cubic-in-out")
-        )
-        fig_cpi.update_xaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
-        fig_cpi.update_yaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
-        st.plotly_chart(fig_cpi, use_container_width=True)
-    else:
-        st.write("暂无CPI对比数据")
+# 1. CPI同比与核心CPI同比走势 (独占一行)
+st.markdown("##### 📊 CPI同比与核心CPI同比走势")
+if not df_cpi_compare.empty:
+    fig_cpi = go.Figure()
+    fig_cpi.add_trace(go.Scatter(
+        x=df_cpi_compare["date"],
+        y=df_cpi_compare["cpi_yoy"],
+        mode="lines",
+        name="CPI当月同比 (%)",
+        line=dict(color="#0d6efd", width=2.5)
+    ))
+    fig_cpi.add_trace(go.Scatter(
+        x=df_cpi_compare["date"],
+        y=df_cpi_compare["core_cpi_yoy"],
+        mode="lines",
+        name="核心CPI当月同比 (%)",
+        line=dict(color="#ff7f0e", width=2.5)
+    ))
+    fig_cpi.update_layout(
+        template="plotly_dark",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=10, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode="x unified",
+        transition=dict(duration=800, easing="cubic-in-out")
+    )
+    fig_cpi.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
+    fig_cpi.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
+    st.plotly_chart(fig_cpi, use_container_width=True)
+else:
+    st.write("暂无CPI对比数据")
 
-with col2:
-    st.markdown("##### 📊 核心分项当月同比（最新月份）")
-    if not df_cat.empty:
-        latest_row = df_cat.iloc[-1]
-        latest_date = latest_row["date"]
-        
-        categories = ["食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
-        values = [float(latest_row[cat]) for cat in categories]
-        
-        fig_bar = go.Figure()
-        fig_bar.add_trace(go.Bar(
-            x=categories,
-            y=values,
-            name="同比增速 (%)",
-            marker_color="#0d6efd",
-            text=[f"{val:+.1f}%" for val in values],
-            textposition="auto",
-            marker=dict(line=dict(width=0))
-        ))
-        fig_bar.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=10, r=10, t=10, b=10),
-            hovermode="x",
-            transition=dict(duration=800, easing="cubic-in-out")
-        )
-        fig_bar.update_xaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
-        fig_bar.update_yaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
-        st.plotly_chart(fig_bar, use_container_width=True)
-    else:
-        st.write("暂无分项数据")
+# 2. 核心分项当月同比（最新月份）(独占一行)
+st.markdown("##### 📊 核心分项当月同比（最新月份）")
+if not df_cat.empty:
+    latest_row = df_cat.iloc[-1]
+    latest_date = latest_row["date"]
+    
+    categories = ["食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
+    values = [float(latest_row[cat]) for cat in categories]
+    
+    fig_bar = go.Figure()
+    fig_bar.add_trace(go.Bar(
+        x=categories,
+        y=values,
+        name="同比增速 (%)",
+        marker_color="#0d6efd",
+        text=[f"{val:+.1f}%" for val in values],
+        textposition="auto",
+        marker=dict(line=dict(width=0))
+    ))
+    fig_bar.update_layout(
+        template="plotly_dark",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=10, b=10),
+        hovermode="x",
+        transition=dict(duration=800, easing="cubic-in-out")
+    )
+    fig_bar.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
+    fig_bar.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
+    st.plotly_chart(fig_bar, use_container_width=True)
+else:
+    st.write("暂无分项数据")
 
-# Stacked line chart for coal prices
+# 3. 动力煤与焦煤现货价格对比 (独占一行)
 st.markdown("##### 📊 动力煤与焦煤现货价格对比")
 if not df_coal_prices.empty:
     fig_coal = go.Figure()
@@ -246,6 +281,7 @@ if not df_coal_prices.empty:
         line=dict(color="#9467bd", width=2.5)
     ))
     fig_coal.update_layout(
+        template="plotly_dark",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=10, r=10, t=10, b=10),
@@ -253,8 +289,8 @@ if not df_coal_prices.empty:
         hovermode="x unified",
         transition=dict(duration=800, easing="cubic-in-out")
     )
-    fig_coal.update_xaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
-    fig_coal.update_yaxes(showgrid=False, zeroline=False, linecolor="#dee2e6")
+    fig_coal.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
+    fig_coal.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
     st.plotly_chart(fig_coal, use_container_width=True)
 else:
     st.write("暂无煤炭价格数据")
