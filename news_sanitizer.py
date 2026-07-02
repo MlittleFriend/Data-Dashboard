@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-news_sanitizer.py | 实时快讯终极清洗层 (V1.1.1.5)
+news_sanitizer.py | 实时快讯终极清洗层 (V1.1.1.6)
 负责：URL 前馈合法性审查、方括号实体名词死锁、AI 定长摘要。
 本模块保持零 Streamlit 依赖，可被 App.py 与离线清洗脚本共同引用。
 """
@@ -12,34 +12,26 @@ import re
 # ---------------------------------------------------------------------------
 def is_valid_url(url_val):
     """
-    对 href 字段执行最严苛的前馈合法性审查。
-    凡是空链、纯符号、javascript 跳转、长度 <= 5、死链占位符、无真实域名的链接
-    一律判定为非法，触发 App.py 中的 DOM 降级解包（Plain Text）。
+    对 href 字段执行精确分流审查：
+    ✅ 以 http:// 或 https:// 开头的真实外网链接 → 合法（保留 <a> 高亮态）
+    ❌ 空链、javascript 跳转、常见空占位符 → 非法（DOM 降级为纯文本）
+    避免上一版过度校验导致正常新闻链接被误清洗。
     """
     if not url_val or not isinstance(url_val, str):
         return False
 
     url_val = url_val.strip()
-
-    # 1. 空字符串或长度过短
-    if len(url_val) <= 5:
+    if not url_val:
         return False
 
-    # 2. 危险/无效协议与 js 跳转
     lowered = url_val.lower()
-    if "javascript:" in lowered or "void(0)" in lowered or lowered.startswith("data:"):
+
+    # 1. 拦截 js 跳转与常见空占位符
+    if "javascript:" in lowered or "void(0)" in lowered:
         return False
 
-    # 3. 仅包含特殊符号
-    if re.match(r'^[\#\s\?\&\=\-\+\%\:\/\.]+$', url_val):
-        return False
-
-    # 4. 必须是可直接跳转的 http/https 协议
-    if not (url_val.startswith("http://") or url_val.startswith("https://")):
-        return False
-
-    # 5. 死链占位符黑名单（含大小写与常见空值占位）
-    dead_placeholders = {
+    empty_placeholders = {
+        "", "#", "##", "###", "null", "none", "undefined", "about:blank",
         "http://#", "https://#", "http://", "https://",
         "http://null", "https://null",
         "http://none", "https://none",
@@ -47,19 +39,11 @@ def is_valid_url(url_val):
         "http://javascript:void(0)", "https://javascript:void(0)",
         "http://about:blank", "https://about:blank",
     }
-    if lowered in dead_placeholders:
+    if lowered in empty_placeholders:
         return False
 
-    # 6. 协议头后必须存在可识别的域名结构（至少一个点且后续有有效字符）
-    domain_part = url_val[7:] if url_val.startswith("http://") else url_val[8:]
-    if not domain_part or "." not in domain_part:
-        return False
-
-    # 7. 域名主体必须包含有效二级结构（避免 a.b / 纯数字 / 纯符号占位）
-    host_part = domain_part.split("/")[0].split(":")[0]
-    if not host_part or re.match(r'^[\d\.]+$', host_part):
-        return False
-    if not re.match(r'^[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-_]{2,}$', host_part):
+    # 2. 仅接受可直接跳转的 http/https 真实协议
+    if not (url_val.startswith("http://") or url_val.startswith("https://")):
         return False
 
     return True
