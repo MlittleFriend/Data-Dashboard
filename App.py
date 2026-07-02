@@ -14,8 +14,8 @@ import schema_aligner
 from news_sanitizer import is_valid_url, sanitize_news_item
 from upload_data import fetch_finance_news
 
-# 版本标识与前馈控制参数 V1.1.2.8
-VERSION = "V1.1.2.8"
+# 版本标识与前馈控制参数 V1.1.2.9
+VERSION = "V1.1.2.9"
 
 def check_and_upgrade_db():
     try:
