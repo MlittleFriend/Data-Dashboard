@@ -16,7 +16,7 @@ except Exception:
 import os
 import sqlite3
 
-from news_sanitizer import ai_summarize, is_valid_url
+from news_sanitizer import is_valid_url, sanitize_news_item
 
 DB_FILES = ["my_data.db", "test_my_data.db"]
 
@@ -38,12 +38,20 @@ def clean_db(db_path):
         conn.close()
         return
 
-    cursor.execute("SELECT rowid, content, url FROM text_records")
+    # 检查是否包含 title 字段，没有则添加
+    cursor.execute("PRAGMA table_info(text_records)")
+    columns = [c[1] for c in cursor.fetchall()]
+    if "title" not in columns:
+        cursor.execute("ALTER TABLE text_records ADD COLUMN title TEXT")
+        conn.commit()
+
+    cursor.execute("SELECT rowid, title, content, url FROM text_records")
     rows = cursor.fetchall()
 
     deleted = 0
     updated = 0
-    for rowid, content, url in rows:
+    for rowid, title, content, url in rows:
+        title = title or ""
         content = content or ""
         url = url or ""
 
@@ -54,20 +62,13 @@ def clean_db(db_path):
             continue
 
         # 强制重新标准化内容
-        new_content = ai_summarize(content)
+        raw_text = f"{title}：{content}" if title else content
+        new_title, new_content = sanitize_news_item(raw_text)
 
-        # 强制在最开头保留唯一一套【】方括号，剥离其余所有【】与[]
-        if new_content.startswith("【"):
-            parts = new_content.split("】", 1)
-            if len(parts) > 1:
-                prefix = parts[0] + "】"
-                body = parts[1].replace("【", "").replace("】", "").replace("[", "").replace("]", "")
-                new_content = prefix + body
-
-        if new_content != content:
+        if new_title != title or new_content != content:
             cursor.execute(
-                "UPDATE text_records SET content = ? WHERE rowid = ?",
-                (new_content, rowid),
+                "UPDATE text_records SET title = ?, content = ? WHERE rowid = ?",
+                (new_title, new_content, rowid),
             )
             updated += 1
 

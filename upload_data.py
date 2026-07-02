@@ -13,7 +13,7 @@ import openpyxl
 import pandas as pd
 import requests
 
-from news_sanitizer import is_valid_url
+from news_sanitizer import is_valid_url, sanitize_news_item
 
 DB_NAME = "my_data.db"
 EXCEL_FILE = "26630.xlsx"
@@ -172,10 +172,14 @@ def fetch_finance_news(limit=5):
             doc_url = item.get("docurl", "").strip()
             if not is_valid_url(doc_url):
                 continue
+            # 提取并清洗 title 和 content 独立字段
+            raw_text = item.get("rich_text", "").strip()
+            t, c = sanitize_news_item(raw_text)
             records.append({
                 "id": item.get("id"),
                 "publish_time": item.get("create_time"),
-                "content": item.get("rich_text", "").strip(),
+                "title": t,
+                "content": c,
                 "url": doc_url,
                 "source": "新浪财经 7×24",
                 "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

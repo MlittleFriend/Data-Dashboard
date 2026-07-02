@@ -11,11 +11,28 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 import schema_aligner
-from news_sanitizer import ai_summarize, is_valid_url
+from news_sanitizer import is_valid_url, sanitize_news_item
 from upload_data import fetch_finance_news
 
-# 版本标识与前馈控制参数 V1.1.2.5
-VERSION = "V1.1.2.5"
+# 版本标识与前馈控制参数 V1.1.2.6
+VERSION = "V1.1.2.6"
+
+def check_and_upgrade_db():
+    try:
+        conn = sqlite3.connect("my_data.db", timeout=10.0)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='text_records'")
+        if cursor.fetchone():
+            cursor.execute("PRAGMA table_info(text_records)")
+            columns = [c[1] for c in cursor.fetchall()]
+            if "title" not in columns:
+                cursor.execute("DROP TABLE IF EXISTS text_records")
+                conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[DB Upgrade Check] Failed: {e}")
+
+check_and_upgrade_db()
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -543,11 +560,11 @@ def load_data(current_date_str):
     # 2.2 顶部新浪 7x24 实时快讯
     try:
         df_news = pd.read_sql_query(
-            "SELECT content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 12",
+            "SELECT title, content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 12",
             conn,
         )
     except Exception:
-        df_news = pd.DataFrame(columns=["content", "url", "publish_time"])
+        df_news = pd.DataFrame(columns=["title", "content", "url", "publish_time"])
 
     # 2.3 底部宏观研究成果 HTML 列表
     target_macro_html = ""
@@ -587,9 +604,7 @@ def news_crawling_daemon():
         if need_initial_fetch:
             records = fetch_finance_news(limit=12)
             if records:
-                # 对初始抓取数据执行 AI 摘要层过滤
-                for r in records:
-                    r["content"] = ai_summarize(r["content"])
+                # fetch_finance_news already split and sanitized title and content fields
                 df_res = pd.DataFrame(records)
                 conn = sqlite3.connect("my_data.db", timeout=30.0)
                 df_res.to_sql("text_records", conn, if_exists="replace", index=False)
@@ -615,8 +630,6 @@ def news_crawling_daemon():
                 for r in records:
                     rid = str(r["id"])
                     if rid not in existing_ids:
-                        # 注入 AI 自动化定长摘要过滤
-                        r["content"] = ai_summarize(r["content"])
                         new_records.append(r)
                         
                 if new_records:
@@ -628,7 +641,7 @@ def news_crawling_daemon():
                     df_new = pd.DataFrame(top_5_new)
                     df_new["id"] = df_new["id"].astype(str)
                     df_new.to_sql("text_records", conn, if_exists="append", index=False)
-                    print(f"[Daemon High-Freq] V1.1.1.0 appended {len(top_5_new)} global news items.")
+                    print(f"[Daemon High-Freq] V1.1.2.6 appended {len(top_5_new)} global news items.")
                 conn.close()
         except Exception as e:
             print(f"[Daemon High-Freq] News crawling daemon failed: {e}")
@@ -930,36 +943,33 @@ with col_right:
         try:
             conn_fresh = sqlite3.connect("my_data.db", timeout=30.0)
             df_news_fresh = pd.read_sql_query(
-                "SELECT content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 12",
+                "SELECT title, content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 12",
                 conn_fresh,
             )
             conn_fresh.close()
         except Exception:
-            df_news_fresh = pd.DataFrame(columns=["content", "url", "publish_time"])
+            df_news_fresh = pd.DataFrame(columns=["title", "content", "url", "publish_time"])
 
         news_html_cards = []
         if not df_news_fresh.empty:
             for _, row in df_news_fresh.iterrows():
+                title = row.get("title", "")
                 content = row.get("content", "")
                 url = row.get("url", "")
                 time_str = row.get("publish_time", "")
                 
-                # V1.1.1.10: 终极前馈清洗——未被 daemon 转换的记录在此处强制标准化
-                c_str = str(content)
-                if c_str.startswith("【") and "】" in c_str[:15] and 40 <= len(c_str) <= 60:
-                    summarized_content = c_str
-                else:
-                    summarized_content = ai_summarize(c_str)
+                # 兼容历史没有独立 title 列的数据，自适应分裂
+                if not title:
+                    title, content = sanitize_news_item(str(content))
+                    
+                # 重新拼接前端展示文本，格式锁死为：{原标题}：{核心简讯}
+                display_text = f"{title}：{content}"
+                
+                # 保证尾部以单个句号完结
+                display_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', display_text) + "。"
+                display_text = re.sub(r'。+$', '。', display_text)
 
-                # 强制在最开头保留唯一一套【】方括号，剥离其余所有【】与[]
-                if summarized_content.startswith("【"):
-                    parts = summarized_content.split("】", 1)
-                    if len(parts) > 1:
-                        prefix = parts[0] + "】"
-                        body = parts[1].replace("【", "").replace("】", "").replace("[", "").replace("]", "")
-                        summarized_content = prefix + body
-
-                clean_content = re.sub('<[^<]+?>', '', summarized_content)
+                clean_content = re.sub('<[^<]+?>', '', display_text)
 
                 # V1.1.1.10: 链接硬拦截——无有效链接快讯直接物理剔除，保证 100% 可点击
                 if not is_valid_url(url):

@@ -171,155 +171,104 @@ def clean_trailing_incomplete(body_text):
 # ---------------------------------------------------------------------------
 # AI 定长摘要层（40-60 字、单中文句号结尾、无省略号）
 # ---------------------------------------------------------------------------
-def ai_summarize(text):
+def sanitize_news_item(rich_text):
     """
-    轻量级 AI 定长摘要：对全球新闻实施硬性 40-60 字控制与结构规范化。
-    格式：【核心实体】+ 精炼事件概述（以单一中文句号收尾）。
+    对原始快讯进行独立字段（原标题、核心简讯）提取与精简。
+    返回 (title, content)
+    其中合并后的总字数（len(title) + 1 + len(content)）在 40 - 60 字之间。
+    尾部强制以单个标准简体中文句号完结，并粉碎所有旧版方括号格式。
     """
-    if not isinstance(text, str):
-        return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
+    if not isinstance(rich_text, str):
+        return "全球要闻", "当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
 
-    # 仅当整句被单一层同类型括号完整包裹时才解包；保留【实体】事件描述 结构
-    clean_text = text.strip()
-    for open_b, close_b in [('【', '】'), ('[', ']'), ('（', '）'), ('(', ')')]:
-        if clean_text.startswith(open_b) and clean_text.endswith(close_b):
-            inner = clean_text[1:-1].strip()
-            # 防止误拆含嵌套同类型括号的文本
-            if open_b not in inner and close_b not in inner:
-                clean_text = inner
+    rich_text = rich_text.strip()
+    
+    # 彻底粉碎并清理原文本中的所有方括号 (防止提取逻辑混乱或含有残留方括号)
+    # 首先提取方括号中的标题（如果有的话）
+    m = re.match(r'^[【\[\(（]([^】\]\)）]+)[】\]\)）]', rich_text)
+    if m:
+        title = m.group(1).strip()
+        body = rich_text[m.end():].strip()
+    else:
+        # 寻找首个标点分界，截取前 8-12 个字作为语义标题
+        split_idx = 10
+        for idx in range(8, 13):
+            if idx < len(rich_text) and rich_text[idx] in ['：', ':', '，', ',']:
+                split_idx = idx
                 break
-    clean_text = re.sub(r'<[^>]+>', '', clean_text)
-    clean_text = clean_text.strip()
+        title = rich_text[:split_idx].strip()
+        body = rich_text[split_idx:].strip()
 
-    if not clean_text:
-        return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
+    # 剥离提取后标题与正文内部所有的方括号噪音，彻底不使用 【】 字符
+    title = title.replace("【", "").replace("】", "").replace("[", "").replace("]", "").replace("（", "").replace("）", "").replace("(", "").replace(")", "")
+    body = body.replace("【", "").replace("】", "").replace("[", "").replace("]", "")
 
-    # 1. 提取核心名词实体（只放专有名词/发布主体，长度 2-8 字，不含动词/数字）
-    def extract_entity(t):
-        # A. 优先匹配原生方括号标签
-        m_bracket = re.match(r'^[【\[\(（]([^】\]\)）]+)[】\]\)）]', t)
-        if m_bracket:
-            candidate = m_bracket.group(1).strip()
-            candidate = clean_entity_candidate(candidate)
-            if candidate:
-                return candidate
+    title = re.sub(r'^[：，,。；;！!？?、\s]+', '', title)
+    title = re.sub(r'[：，,。；;！!？?、\s]+$', '', title)
+    body = re.sub(r'^[：，,。；;！!？?、\s]+', '', body)
 
-        # B. 剥离可能存在的头部括号，从正文主体中识别实体
-        text_body = re.sub(r'^[【\[\(（][^】\]\)）]+[】\]\)）]', '', t).strip()
+    if not title:
+        title = "全球要闻"
 
-        # B1. 主体 + 常见动作词边界
-        verbs = r'(?:发布|表示|指出|宣布|称|公布|报道|警告|印发|公告|举行|开展|建议|强调|警示|印发|下发|取消|恢复|调整|上涨|下跌)'
-        match_verb = re.search(r'^([^：，,。—\s【】（）]{2,12}?)(?:' + verbs + r')', text_body)
-        if match_verb:
-            candidate = clean_entity_candidate(match_verb.group(1))
-            if candidate:
-                return candidate
+    # 保证格式: "{title}：{body}。"
+    # 总字数限制为 40 - 60 字 (包括冒号和句号)
+    # len(title) + 1 (冒号) + len(body) + 1 (句号) = [40, 60]
+    # => len(body) 限制在 [38 - len(title), 58 - len(title)]
+    max_body_len = 58 - len(title)
 
-        # B2. 常见机构/主体后缀
-        org_suffixes = r'(?:厅|部|局|台|委|会|公司|集团|银行|证券|交易所|央行|政府|协会|联社|研究所|中心|企业|媒体|行业|产业|股市|市场|报告|预警|指数|数据|会议|纪要)'
-        match_suffix = re.search(r'^([^：，,。—\s【】（）]{2,12}?' + org_suffixes + r')', text_body)
-        if match_suffix:
-            candidate = clean_entity_candidate(match_suffix.group(1))
-            if candidate:
-                return candidate
+    if len(title) > 25:
+        title = title[:23] + "..."
+        max_body_len = 58 - len(title)
 
-        # B3. 常用宏观名词词库匹配
-        entities = [
-            "日本央行", "美联储", "欧央行", "英国央行", "国家统计局", "发改委", "商务部",
-            "财政部", "交通运输部", "水利厅", "气象局", "气象台", "川崎重工", "日本生命保险",
-            "联合国", "世界银行", "欧盟", "中国", "美国", "日本", "英国", "法国", "德国",
-            "俄罗斯", "沙特", "欧佩克", "OPEC", "动力煤", "焦煤", "石油", "黄金"
-        ]
-        for ent in entities:
-            if ent in text_body[:20]:
-                return ent
-
-        # B4. 兜底匹配最前部的干净名词
-        match_noun = re.match(r'^([^：，,。—\s【】（）]{2,8})', text_body)
-        if match_noun:
-            candidate = clean_entity_candidate(match_noun.group(1))
-            if candidate:
-                return candidate
-
-        return "全球要闻"
-
-    entity = extract_entity(clean_text)
-    prefix = f"【{entity}】"
-
-    # 2. 剥离正文开头的实体前缀与特殊符号，防符号粘连
-    text_body = re.sub(r'^[【\[\(（][^】\]\)）]+[】\]\)）]', '', clean_text).strip()
-    if text_body.startswith(entity):
-        text_body = text_body[len(entity):].lstrip("：，, ")
-
-    # 特殊语法边界纠偏：如 entity="哈萨克斯坦能源部", body="长：" => entity="哈萨克斯坦", body="能源部长："
-    regions = ["哈萨克斯坦", "美国", "中国", "日本", "俄罗斯", "英国", "法国", "德国", "印度", "沙特", "乌克兰", "欧盟"]
-    for reg in regions:
-        if entity.startswith(reg) and entity != reg:
-            if text_body.startswith("长") or text_body.startswith("：") or text_body.startswith("表示"):
-                dept = entity[len(reg):]
-                entity = reg
-                prefix = f"【{entity}】"
-                text_body = dept + text_body
-                break
-
-    # 优化标签衔接过渡
-    text_body = re.sub(r'^[：，,。；;！!？?、\s【】\[\]\(\)\（\）\-\—\+]+', '', text_body).strip()
-    text_body = re.sub(r'^长(?:：|:)', '部长表示：', text_body)
-    text_body = re.sub(r'^([部厅局长官人委台])(?:：|:)', r'\1表示：', text_body)
-
-    # 3. 分句累加组装（前馈防止截断半句）
-    clauses = [c.strip() for c in re.split(r'[，,；;。！!？?、]', text_body) if c.strip()]
-
+    # 累加正文子句
+    clauses = [c.strip() for c in re.split(r'[，,；;。！!？?、]', body) if c.strip()]
     accumulated_body = ""
     for c in clauses:
         separator = "，" if accumulated_body else ""
         test_body = accumulated_body + separator + c
-        if len(prefix) + len(test_body) + 1 <= 60:
+        if len(test_body) <= max_body_len:
             accumulated_body = test_body
         else:
             break
 
-    # 如果第一句就超过 60 字限制，必须截断并拼接语法完整结尾
+    # 兜底截断
     if not accumulated_body and clauses:
         first_clause = clauses[0]
-        max_b_len = 60 - len(prefix) - 1
-        suffix = "，市场对此高度关注"
-        safe_len = max_b_len - len(suffix)
-        if safe_len >= 20:
-            # 在 safe_len 范围内回退到最近一个完整分句/短语边界
-            snippet = first_clause[:safe_len]
-            last_punct = max(snippet.rfind('，'), snippet.rfind('、'), snippet.rfind('；'))
-            if last_punct > 10:
-                snippet = snippet[:last_punct]
-            accumulated_body = clean_trailing_incomplete(snippet) + suffix
+        suffix = "，市场关注度上升"
+        safe_len = max_body_len - len(suffix)
+        if safe_len >= 10:
+            accumulated_body = first_clause[:safe_len] + suffix
         else:
-            accumulated_body = first_clause[:max_b_len]
-            accumulated_body = clean_trailing_incomplete(accumulated_body)
+            accumulated_body = first_clause[:max_body_len]
 
-    # 4. 完整分句累加出的 body 保持原貌；仅截断路径已做清洗
+    accumulated_body = clean_trailing_incomplete(accumulated_body)
 
-    # 5. 二次对齐 [40, 60] 字的物理空间限制
-    # 清理 body 中的所有方括号，保证整条快讯有且仅有开头的一套【】
-    accumulated_body = accumulated_body.replace("【", "").replace("】", "").replace("[", "").replace("]", "")
-    summary = f"{prefix}{accumulated_body}。"
-    summary = re.sub(r'。+$', '。', summary)
+    # 检查最小字数限制
+    combined_len = len(title) + 2 + len(accumulated_body)
+    if combined_len < 40:
+        tail = "，观察哨对此持续保持高频监测与深度跟踪"
+        needed = 40 - combined_len
+        accumulated_body = accumulated_body + tail[:needed+5]
 
-    if len(summary) < 40:
-        # 以完整补充句填充，避免逐字截断造成病句；以逗号自然衔接前文
-        full_tail = "，本观察哨对此将持续保持高频监测与深度跟踪分析。"
-        candidate = f"{prefix}{accumulated_body}{full_tail}"
-        candidate = re.sub(r'。+$', '。', candidate)
-        # 若超长则回退到最近完整分句边界
-        if len(candidate) > 60:
-            truncated = candidate[:59]
-            last_punct = max(truncated.rfind('，'), truncated.rfind('、'), truncated.rfind('；'))
-            if last_punct > len(prefix) + 5:
-                truncated = truncated[:last_punct]
-            candidate = truncated + "。"
-        summary = candidate
+    # 二次对齐 [40, 60] 空间限制
+    combined_len = len(title) + 2 + len(accumulated_body)
+    if combined_len > 60:
+        overflow = combined_len - 60
+        accumulated_body = accumulated_body[:-overflow]
+        accumulated_body = clean_trailing_incomplete(accumulated_body)
+        
+    accumulated_body = re.sub(r'[。，,；;！!？?、\s：]+$', '', accumulated_body) + "。"
+    accumulated_body = re.sub(r'。+$', '。', accumulated_body)
 
-    # 终极越界防护
-    if len(summary) > 60:
-        summary = summary[:59] + "。"
+    return title.strip(), accumulated_body.strip()
+        
 
-    return summary
+def ai_summarize(text):
+    """
+    轻量级 AI 定长摘要：保持原接口签名以向下兼容，返回格式为 "{原标题}：{核心简讯}"
+    """
+    title, content = sanitize_news_item(text)
+    res = f"{title}：{content}"
+    res = re.sub(r'。+$', '。', res)
+    return res
+
