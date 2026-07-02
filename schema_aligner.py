@@ -7,18 +7,19 @@ schema_aligner.py | 26630 表格动态监听与自适应语义对齐引擎 (V1.1
 3. 自动化二阶宏观推演解读生成
 4. SQLite 数据动态更新入库
 """
-import os
-import sys
 import hashlib
-import time
 import json
-import threading
-import sqlite3
+import os
 import re
+import sqlite3
+import sys
+import threading
+import time
 from datetime import datetime
+
+import openpyxl
 import pandas as pd
 import requests
-import openpyxl
 
 # 标准输出 UTF-8 编码设置
 try:
@@ -208,8 +209,8 @@ def process_sheet(excel_file, sheet_name, sheet_type):
     return extracted_df, mappings
 
 
-def find_sheet_by_keyword(wb, keywords):
-    for sheet in wb.sheetnames:
+def find_sheet_by_keyword(sheet_names, keywords):
+    for sheet in sheet_names:
         for kw in keywords:
             if kw.lower() in sheet.lower():
                 return sheet
@@ -322,7 +323,7 @@ def run_alignment_pipeline(excel_file, force=False):
             conn.close()
             return
             
-    print(f"[Pipeline] 触发 26630 数据管线更新流程...")
+    print("[Pipeline] 触发 26630 数据管线更新流程...")
     
     try:
         # 打开 Excel 以提取 Sheets
@@ -331,9 +332,9 @@ def run_alignment_pipeline(excel_file, force=False):
         wb.close()
         
         # 1. 动态对齐工作表
-        sheet_cpi = find_sheet_by_keyword(wb, ["图1，5", "图1", "1，5", "cpi同比"]) or "图1，5"
-        sheet_cat = find_sheet_by_keyword(wb, ["图2", "cpi分项", "八大分项"]) or "图2"
-        sheet_coal = find_sheet_by_keyword(wb, ["图3，4", "图3", "煤炭", "coal"]) or "图3，4"
+        sheet_cpi = find_sheet_by_keyword(sheet_names, ["图1，5", "图1", "1，5", "cpi同比"]) or "图1，5"
+        sheet_cat = find_sheet_by_keyword(sheet_names, ["图2", "cpi分项", "八大分项"]) or "图2"
+        sheet_coal = find_sheet_by_keyword(sheet_names, ["图3，4", "图3", "煤炭", "coal"]) or "图3，4"
         
         # 2. 依次加载并解析
         df_cpi, map_cpi = process_sheet(excel_file, sheet_cpi, "dashboard_cpi_compare")

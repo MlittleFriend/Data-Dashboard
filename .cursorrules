@@ -1,0 +1,15 @@
+# Developer rules for China Macro Observatory
+
+# Blacklist Virtual Paths / In-memory directories from autocomplete & indexers
+_pyrefly_virtual__/inmemory
+_pyrefly_virtual__
+.venv
+__pycache__
+*.db
+*.xlsx
+
+# Engineering standard guidelines
+- Strict Python compilation check before commits (python -m py_compile App.py)
+- Run ruff check on changes (ruff check .)
+- Maintain exact 40-60 characters constraints for Sina Live News Feed summaries
+- Do not modify existing UI styling colors

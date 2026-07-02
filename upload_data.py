@@ -6,12 +6,13 @@ try:
 except Exception:
     pass
 
-import pandas as pd
 import sqlite3
-import requests
 from datetime import datetime
+
 import openpyxl
-import re
+import pandas as pd
+import requests
+
 from news_sanitizer import is_valid_url
 
 DB_NAME = "my_data.db"

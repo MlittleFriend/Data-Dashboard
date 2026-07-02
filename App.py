@@ -1,16 +1,18 @@
-import streamlit as st
+import json
+import re
 import sqlite3
-import pandas as pd
 import threading
 import time
 from datetime import datetime
-from upload_data import fetch_finance_news
-from news_sanitizer import is_valid_url, ai_summarize
+
+import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
 from plotly.subplots import make_subplots
-import re
-import json
+
 import schema_aligner
+from news_sanitizer import ai_summarize, is_valid_url
+from upload_data import fetch_finance_news
 
 # 版本标识与前馈控制参数 V1.1.2.1
 VERSION = "V1.1.2.1"

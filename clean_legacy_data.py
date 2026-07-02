@@ -13,9 +13,10 @@ try:
 except Exception:
     pass
 
-import sqlite3
 import os
-from news_sanitizer import is_valid_url, ai_summarize
+import sqlite3
+
+from news_sanitizer import ai_summarize, is_valid_url
 
 DB_FILES = ["my_data.db", "test_my_data.db"]
 

@@ -1,0 +1,8 @@
+# Ruff configuration for China Macro Observatory Data Dashboard
+line-length = 120
+target-version = "py311"
+
+[lint]
+# E: pycodestyle errors, F: Pyflakes errors, I: isort imports
+select = ["E", "F", "I"]
+ignore = ["E501"]

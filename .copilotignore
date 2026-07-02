@@ -1,0 +1,6 @@
+_pyrefly_virtual__/**
+_pyrefly_virtual__\inmemory/**
+.venv/**
+__pycache__/**
+*.db
+*.xlsx
