@@ -29,6 +29,21 @@
         },
         "required": ["task_description"]
       }
+    },
+    {
+      "name": "scan_agent_skills",
+      "module": "skillspector_shield",
+      "description": "用于在运行前对外部加载的技能代码实施恶意模式与漏洞安全审查。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_path": {
+            "type": "string",
+            "description": "需要被扫描的目标文件夹或文件路径，默认为 './external_skills'"
+          }
+        },
+        "required": []
+      }
     }
   ]
 }
