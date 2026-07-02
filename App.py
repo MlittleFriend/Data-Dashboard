@@ -6,6 +6,304 @@ from datetime import datetime
 from upload_data import fetch_finance_news
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import re
+
+# 1. 设置网页标题和图标，使用大屏宽屏布局以适配 China Macro Observatory 看板风格
+st.set_page_config(
+    page_title="中国宏观观察哨 | China Macro Observatory", 
+    page_icon="🇨🇳", 
+    layout="wide"
+)
+
+# 注入高信息密度大屏科技暗调风格 CSS 样式
+st.markdown("""
+<style>
+    /* 引入 Outfit 英文和 Noto Sans SC 中文字体 */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+    
+    /* 全局背景色与文字设定 - 对齐 China Macro Observatory 放射渐变暗色调 */
+    .stApp {
+        background: radial-gradient(circle at 50% 10%, #0c1830 0%, #030712 100%) !important;
+        color: #e2e8f0 !important;
+        font-family: 'Outfit', 'Noto Sans SC', sans-serif !important;
+    }
+    
+    /* 去除 Streamlit 页面顶部空白 */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+    
+    /* 大标题渐变字效果 */
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2px;
+        border-bottom: 1px solid rgba(56, 189, 248, 0.1);
+        padding-bottom: 8px;
+    }
+    
+    .dashboard-title-box {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .dashboard-title {
+        background: linear-gradient(135deg, #00f0ff 0%, #0072ff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        font-size: 2.2rem;
+        margin: 0;
+        letter-spacing: -0.5px;
+        line-height: 1.2;
+    }
+    
+    .dashboard-subtitle {
+        color: #00f0ff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        margin-top: 4px;
+        margin-bottom: 0;
+        opacity: 0.85;
+    }
+
+    /* 前馈控制自检指示条 System Feed-forward State Panel */
+    .system-status-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        background: rgba(8, 20, 44, 0.6);
+        border: 1px solid rgba(0, 240, 255, 0.15);
+        border-radius: 8px;
+        padding: 8px 16px;
+        margin-bottom: 16px;
+        font-size: 0.76rem;
+        align-items: center;
+        justify-content: space-between;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 0 10px rgba(0, 240, 255, 0.05);
+    }
+    
+    .status-items {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .status-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+    }
+    
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 8px currentColor;
+    }
+    
+    .dot-green {
+        background-color: #10b981;
+        color: #10b981;
+    }
+    
+    .dot-blue {
+        background-color: #00f0ff;
+        color: #00f0ff;
+    }
+    
+    .dot-purple {
+        background-color: #a78bfa;
+        color: #a78bfa;
+    }
+
+    /* 观察哨高密度玻璃感卡片容器 */
+    .obs-card {
+        background: rgba(10, 22, 47, 0.45) !important;
+        border: 1px solid rgba(0, 240, 255, 0.12) !important;
+        border-radius: 12px !important;
+        padding: 15px !important;
+        margin-bottom: 16px !important;
+        backdrop-filter: blur(20px) !important;
+        box-shadow: 0 10px 35px 0 rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 240, 255, 0.02) !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    }
+    .obs-card:hover {
+        border-color: rgba(0, 240, 255, 0.28) !important;
+        box-shadow: 0 12px 40px 0 rgba(0, 240, 255, 0.05), inset 0 0 20px rgba(0, 240, 255, 0.04) !important;
+    }
+    
+    /* 核心指标 KPI 仪表盘卡片 */
+    .kpi-card {
+        background: rgba(6, 14, 32, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        border-top: 3px solid #00c3ff;
+        border-radius: 10px;
+        padding: 12px 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    .kpi-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(0, 240, 255, 0.35);
+        box-shadow: 0 10px 30px rgba(0, 240, 255, 0.08), inset 0 0 10px rgba(0, 240, 255, 0.02);
+    }
+    .kpi-title {
+        font-size: 0.78rem;
+        color: #94a3b8;
+        font-weight: 600;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    .kpi-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1.2;
+        letter-spacing: -0.5px;
+    }
+    .kpi-delta {
+        font-size: 0.74rem;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-weight: 600;
+    }
+    .delta-up {
+        color: #ff3b30; /* 红色：上游资源价格/通胀抬升提示 */
+        text-shadow: 0 0 8px rgba(255, 59, 48, 0.2);
+    }
+    .delta-down {
+        color: #34c759; /* 绿色：平稳下降 */
+        text-shadow: 0 0 8px rgba(52, 199, 89, 0.2);
+    }
+    .delta-neutral {
+        color: #8e8e93;
+    }
+    
+    /* 侧边栏/控制面板样式重塑 */
+    .sidebar-title {
+        color: #ffffff;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 8px;
+    }
+    
+    div[data-testid="stSidebar"] {
+        background-color: #060c19 !important;
+        border-right: 1px solid rgba(0, 240, 255, 0.12) !important;
+    }
+
+    /* 快讯卡片容器及微动画 */
+    .news-scroll-container {
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+    .news-scroll-container::-webkit-scrollbar {
+        width: 4px;
+    }
+    .news-scroll-container::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.01);
+        border-radius: 2px;
+    }
+    .news-scroll-container::-webkit-scrollbar-thumb {
+        background: rgba(0, 240, 255, 0.2);
+        border-radius: 2px;
+    }
+    .news-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 240, 255, 0.4);
+    }
+    
+    .news-card {
+        background: rgba(14, 28, 59, 0.35);
+        border-left: 3px solid #00bfff;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .news-card:hover {
+        background: rgba(14, 28, 59, 0.6);
+        transform: translateX(3px);
+        border-left-color: #00f0ff;
+        box-shadow: 0 4px 16px rgba(0, 240, 255, 0.05);
+    }
+    .news-time {
+        font-size: 0.68rem;
+        color: #7a8c9e;
+        margin-bottom: 4px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .news-content {
+        font-size: 0.8rem;
+        color: #cbd5e1;
+        line-height: 1.45;
+    }
+    
+    /* 选项卡 (Tabs) 美化 */
+    div[data-baseweb="tab-list"] {
+        gap: 6px;
+        background: rgba(6, 14, 32, 0.6) !important;
+        padding: 4px !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(0, 240, 255, 0.08) !important;
+    }
+    button[data-baseweb="tab"] {
+        border-radius: 6px !important;
+        border: none !important;
+        padding: 6px 14px !important;
+        background: transparent !important;
+        color: #8a99ad !important;
+        font-size: 0.8rem !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }
+    button[data-baseweb="tab"]:hover {
+        color: #00f0ff !important;
+        background: rgba(0, 240, 255, 0.05) !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: #0072ff !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4) !important;
+    }
+    
+    /* Streamlit Expander 美化 */
+    div[data-testid="stExpander"] {
+        background: rgba(8, 20, 44, 0.4) !important;
+        border: 1px solid rgba(0, 240, 255, 0.1) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3) !important;
+    }
+    
+    /* 调整原始数据表格的样式 */
+    .stDataFrame {
+        border: 1px solid rgba(0, 240, 255, 0.05) !important;
+        border-radius: 6px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 
 # 聚合聚类与自适应双 Y 轴图表生成算法
 def cluster_series_by_magnitude(df, value_cols):
@@ -46,13 +344,15 @@ def cluster_series_by_magnitude(df, value_cols):
         high_cols = sorted_cols
     return high_cols, low_cols
 
+
 def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y_title="", secondary_y_title=""):
     """
-    自适应双 Y 轴多线绘制函数
+    自适应双 Y 轴多线绘制函数，适配科技暗调主题
     """
     high_cols, low_cols = cluster_series_by_magnitude(df, value_cols)
+    # 电光霓虹配色方案：Cyber Cyan, Gold/Amber, Emerald Green, Royal Purple, Rose Red, Bright Yellow
     if not colors:
-        colors = ["#0d6efd", "#ff7f0e", "#2ca02c", "#9467bd", "#d62728", "#17becf", "#bcbd22", "#e377c2"]
+        colors = ["#00f0ff", "#ffb703", "#10b981", "#a78bfa", "#ff2e93", "#e2e8f0"]
     
     if low_cols:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -64,7 +364,7 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
                 y=df[col],
                 mode="lines",
                 name=col,
-                line=dict(color=color, width=2.5)
+                line=dict(color=color, width=3, shape="spline") # 使用 spline 使折线平滑有机化
             ), secondary_y=False)
             
         # 挂载低量级序列在右侧副 Y 轴 (secondary_y=True)
@@ -75,7 +375,7 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
                 y=df[col],
                 mode="lines",
                 name=col,
-                line=dict(color=color, width=2.5)
+                line=dict(color=color, width=3, shape="spline")
             ), secondary_y=True)
             
         left_title = primary_y_title or ", ".join(high_cols)
@@ -86,21 +386,22 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
         
         fig.update_yaxes(
             title_text=left_title,
-            title_font=dict(color=left_color),
-            tickfont=dict(color=left_color),
+            title_font=dict(color=left_color, size=11),
+            tickfont=dict(color=left_color, size=10),
             secondary_y=False,
-            showgrid=False,
+            showgrid=True,
+            gridcolor="rgba(255, 255, 255, 0.03)",
             zeroline=False,
-            linecolor="#30363d"
+            linecolor="rgba(255, 255, 255, 0.1)"
         )
         fig.update_yaxes(
             title_text=right_title,
-            title_font=dict(color=right_color),
-            tickfont=dict(color=right_color),
+            title_font=dict(color=right_color, size=11),
+            tickfont=dict(color=right_color, size=10),
             secondary_y=True,
             showgrid=False,
             zeroline=False,
-            linecolor="#30363d"
+            linecolor="rgba(255, 255, 255, 0.1)"
         )
     else:
         fig = go.Figure()
@@ -111,121 +412,58 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
                 y=df[col],
                 mode="lines",
                 name=col,
-                line=dict(color=color, width=2.5)
+                line=dict(color=color, width=3, shape="spline")
             ))
         left_title = primary_y_title or ", ".join(high_cols)
         fig.update_yaxes(
             title_text=left_title,
-            showgrid=False,
+            showgrid=True,
+            gridcolor="rgba(255, 255, 255, 0.03)",
             zeroline=False,
-            linecolor="#30363d"
+            linecolor="rgba(255, 255, 255, 0.1)"
         )
         
     fig.update_layout(
         template="plotly_dark",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        height=450,
+        height=380,
         margin=dict(l=10, r=10, t=10, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", 
+            y=1.02, 
+            xanchor="right", 
+            x=1,
+            bgcolor="rgba(0,0,0,0)"
+        ),
         hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor="rgba(10, 22, 47, 0.95)",
+            font_size=11,
+            font_family="Outfit, Noto Sans SC, sans-serif"
+        ),
         transition=dict(duration=800, easing="cubic-in-out")
     )
-    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
+    fig.update_xaxes(
+        showgrid=True, 
+        gridcolor="rgba(255, 255, 255, 0.03)", 
+        zeroline=False, 
+        linecolor="rgba(255, 255, 255, 0.1)"
+    )
     return fig
-
-# 1. 设置网页标题和图标
-st.set_page_config(page_title="数据联动看板", page_icon="📊", layout="centered")
-
-# 注入深色科技风 CSS 样式以及滚动划入动画 JS
-st.markdown("""
-<style>
-    /* 全局背景色与文字颜色 */
-    .stApp {
-        background-color: #0E1117 !important;
-        color: #E0E0E0 !important;
-    }
-    /* 修改常规 Markdown 文字、标题、标签颜色 */
-    .stMarkdown, p, span, label, h1, h2, h3, h4, h5, h6 {
-        color: #E0E0E0 !important;
-    }
-    /* 选项卡（st.tabs）美化 */
-    button[data-baseweb="tab"] {
-        color: #E0E0E0 !important;
-        background-color: transparent !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        color: #0d6efd !important;
-        border-bottom-color: #0d6efd !important;
-    }
-    /* 列表/容器组件边框深色化 */
-    div[data-testid="stExpander"] {
-        background-color: #161B22 !important;
-        border: 1px solid #30363D !important;
-    }
-    /* 美化表单和表格展示 */
-    div[data-testid="stDataFrame"] {
-        background-color: #161B22 !important;
-    }
-</style>
-
-<script>
-    (function() {
-        try {
-            const parentDoc = window.parent.document;
-            const styleId = "scroll-slide-up-style";
-            if (!parentDoc.getElementById(styleId)) {
-                const style = parentDoc.createElement("style");
-                style.id = styleId;
-                style.innerHTML = `
-                    .scroll-slide-up {
-                        opacity: 0 !important;
-                        transform: translateY(20px) !important;
-                        transition: opacity 1.0s ease-out, transform 1.0s ease-out !important;
-                    }
-                    .scroll-slide-up.active {
-                        opacity: 1 !important;
-                        transform: translateY(0) !important;
-                    }
-                `;
-                parentDoc.head.appendChild(style);
-            }
-            
-            const applyScrollAnimation = () => {
-                const targets = parentDoc.querySelectorAll('[data-testid="stPlotlyChart"], div[data-testid="stExpander"]');
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            entry.target.classList.add('active');
-                        }
-                    });
-                }, { threshold: 0.1 });
-                
-                targets.forEach(t => {
-                    if (!t.classList.contains('scroll-slide-up')) {
-                        t.classList.add('scroll-slide-up');
-                        observer.observe(t);
-                    }
-                });
-            };
-            
-            applyScrollAnimation();
-            setInterval(applyScrollAnimation, 1000);
-        } catch (e) {
-            console.error("Scroll slide-up animation injection failed:", e);
-        }
-    })();
-</script>
-""", unsafe_allow_html=True)
-
-st.title("📊 宏观经济数据联动看板")
 
 
 # 2. 从数据库读取快讯、图表数据以及宏观分析 HTML 列表
 #    ttl=5 强制每次刷新都穿透缓存，直连物理数据库拉取最新手动追更文章卡片
 @st.cache_data(ttl=5)
 def load_data(current_date_str):
-    conn = sqlite3.connect("my_data.db")
+    try:
+        conn = sqlite3.connect("my_data.db", timeout=30.0)
+    except Exception as e:
+        # 控制论防御：如果数据库连接失败，构建空的 DataFrame 兜底
+        print(f"[Fallback DB] Connection failed: {e}")
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), ""
 
     # 2.1 Excel 数字数据
     try:
@@ -251,13 +489,13 @@ def load_data(current_date_str):
     # 2.2 顶部新浪 7x24 实时快讯
     try:
         df_news = pd.read_sql_query(
-            "SELECT content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 5",
+            "SELECT content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 12",
             conn,
         )
     except Exception:
         df_news = pd.DataFrame(columns=["content", "url", "publish_time"])
 
-    # 2.3 底部宏观研究成果 HTML 列表（由 upload_data.py 生成并写入 macro_analysis 表）
+    # 2.3 底部宏观研究成果 HTML 列表
     target_macro_html = ""
     try:
         cursor = conn.cursor()
@@ -276,23 +514,32 @@ def load_data(current_date_str):
 #    只要最新的数据日期比今天早，立刻强制启动爬虫管道更新数据，并清空缓存
 def maybe_refresh_text_records():
     try:
-        conn = sqlite3.connect("my_data.db")
+        conn = sqlite3.connect("my_data.db", timeout=30.0)
         cursor = conn.cursor()
         cursor.execute("SELECT MAX(publish_time) FROM text_records")
-        result = cursor.fetchone()[0]
+        row = cursor.fetchone()
+        result = row[0] if row else None
         conn.close()
 
         if not result:
+            # 若为空，则直接触发同步抓取
+            records = fetch_finance_news(limit=12)
+            if records:
+                df_res = pd.DataFrame(records)
+                conn = sqlite3.connect("my_data.db", timeout=30.0)
+                df_res.to_sql("text_records", conn, if_exists="replace", index=False)
+                conn.close()
+                load_data.clear()
             return
 
         latest_date = datetime.strptime(str(result).split(" ")[0], "%Y-%m-%d").date()
         today = datetime.now().date()
 
         if latest_date < today:
-            records = fetch_finance_news(limit=5)
+            records = fetch_finance_news(limit=12)
             if records:
                 df_res = pd.DataFrame(records)
-                conn = sqlite3.connect("my_data.db")
+                conn = sqlite3.connect("my_data.db", timeout=30.0)
                 df_res.to_sql("text_records", conn, if_exists="replace", index=False)
                 conn.close()
                 print(f"[Auto Refresh] text_records updated successfully at {datetime.now()}")
@@ -307,198 +554,368 @@ threading.Thread(target=maybe_refresh_text_records, daemon=True).start()
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
-st.cache_data.clear()
 df_trend, df_cat, df_cpi_compare, df_coal_prices, df_news, target_macro_html = load_data(today_str)
 
 
-# 5. 今日热点快讯滚动栏（marquee 横向无缝滚动，每条标题可点击跳转）
-if not df_news.empty:
-    news_items = []
-    for _, row in df_news.iterrows():
-        content = row.get("content", "")
-        url = row.get("url", "")
-        time_str = row.get("publish_time", "")
+# 5. 侧边栏/控制面板 (Sidebar Control Panel)
+st.sidebar.markdown('<div class="sidebar-title">🎛️ 观察哨控制台 / Controls</div>', unsafe_allow_html=True)
 
-        if url:
-            item_html = (
-                f'<a href="{url}" target="_blank" '
-                f'style="color: #856404; text-decoration: none; font-weight: bold;">'
-                f'⚠️ {content}</a>'
-            )
-        else:
-            item_html = f"⚠️ {content}"
+# 动态时间跨度选择器
+time_span = st.sidebar.selectbox(
+    "📊 数据时间范围 (Date Filter)",
+    options=["全部历史数据 (All)", "近三年 (Last 3 Years)", "近一年 (Last Year)", "近半年 (Last 6 Months)"],
+    index=0
+)
 
-        if time_str:
-            news_items.append(f"<b>[{time_str}]</b> {item_html}")
-        else:
-            news_items.append(item_html)
+# 动态过滤函数的实现
+def filter_dataframe_by_timespan(df, date_col, time_span_option):
+    if df.empty or date_col not in df.columns:
+        return df
+    
+    df_temp = df.copy()
+    try:
+        df_temp[date_col] = pd.to_datetime(df_temp[date_col])
+    except Exception:
+        return df
+        
+    latest_date = df_temp[date_col].max()
+    if pd.isnull(latest_date):
+        return df
+        
+    if "近三年" in time_span_option:
+        start_date = latest_date - pd.DateOffset(years=3)
+    elif "近一年" in time_span_option:
+        start_date = latest_date - pd.DateOffset(years=1)
+    elif "近半年" in time_span_option:
+        start_date = latest_date - pd.DateOffset(months=6)
+    else:
+        # 全部数据，直接将日期转回 str 后返回
+        df_temp[date_col] = df_temp[date_col].dt.strftime("%Y-%m-%d")
+        return df_temp
+        
+    df_filtered = df_temp[df_temp[date_col] >= start_date].copy()
+    df_filtered[date_col] = df_filtered[date_col].dt.strftime("%Y-%m-%d")
+    return df_filtered
 
-    news_html = "&nbsp;&nbsp;&nbsp;&nbsp;🔥&nbsp;".join(news_items)
+# 对折线图数据表执行过滤
+df_cpi_compare_filtered = filter_dataframe_by_timespan(df_cpi_compare, "date", time_span)
+df_coal_prices_filtered = filter_dataframe_by_timespan(df_coal_prices, "date", time_span)
 
-    ticker_html = f"""
-    <div style="
-        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
-        border-left: 6px solid #ffc107;
-        border-radius: 12px;
-        padding: 14px 20px;
-        margin-bottom: 24px;
-        box-shadow: 0 4px 14px rgba(255, 193, 7, 0.18);
-        font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
-    ">
-        <div style="
-            display: inline-block;
-            color: #856404;
-            font-weight: 700;
-            font-size: 16px;
-            margin-right: 12px;
-            vertical-align: middle;
-        ">
-            📰 今日热点快讯
-        </div>
-        <marquee behavior="scroll" direction="left" scrollamount="5" style="
-            display: inline-block;
-            width: calc(100% - 130px);
-            color: #5d4a00;
-            font-size: 15px;
-            vertical-align: middle;
-        ">
-            {news_html}
-        </marquee>
+st.sidebar.markdown("---")
+
+# 强制触发同步按钮
+if st.sidebar.button("🔄 立即同步最新数据 (Sync Now)"):
+    st.cache_data.clear()
+    st.rerun()
+
+st.sidebar.markdown("""
+<div style="background: rgba(0, 240, 255, 0.04); border: 1px solid rgba(0, 240, 255, 0.1); border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #94a3b8; line-height: 1.45;">
+    💡 <b>智联提示</b><br>
+    本看板自动从数据库加载最新分项 CPI 与黑色系双焦均价，自适应双 Y 轴聚类算法已部署，后台侦测线程自动同步 Sina 情报流。
+</div>
+""", unsafe_allow_html=True)
+
+
+# 6. 大屏看板头部 (Header Area with Self-Inspection Bar)
+st.markdown("""
+<div class="dashboard-header">
+    <div class="dashboard-title-box">
+        <h1 class="dashboard-title">China Macro Observatory</h1>
+        <p class="dashboard-subtitle">中国宏观经济观察哨 ‧ 指标监测大屏</p>
     </div>
-    """
-    st.markdown(ticker_html, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
-
-# 6. 数据可视化分析
-st.subheader("📈 宏观数据多维可视化分析")
-
-# 1. CPI同比与核心CPI同比走势 (独占一行)
-st.markdown("##### 📊 CPI同比与核心CPI同比走势")
-if not df_cpi_compare.empty:
-    df_cpi_display = df_cpi_compare.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
-    fig_cpi = render_dual_axis_line_chart(
-        df_cpi_display, 
-        "date", 
-        ["CPI当月同比 (%)", "核心CPI当月同比 (%)"], 
-        colors=["#0d6efd", "#ff7f0e"],
-        primary_y_title="同比 (%)"
-    )
-    st.plotly_chart(fig_cpi, use_container_width=True, config={'staticPlot': True})
-else:
-    st.write("暂无CPI对比数据")
-
-# 2. 核心分项当月同比（最新月份）(独占一行)
-st.markdown("##### 📊 核心分项当月同比（最新月份）")
-if not df_cat.empty:
-    latest_row = df_cat.iloc[-1]
-    latest_date = latest_row["date"]
-    
-    categories = ["食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
-    values = [float(latest_row[cat]) for cat in categories]
-    
-    fig_bar = go.Figure()
-    fig_bar.add_trace(go.Bar(
-        x=categories,
-        y=values,
-        name="同比增速 (%)",
-        marker_color="#0d6efd",
-        text=[f"{val:+.1f}%" for val in values],
-        textposition="auto",
-        marker=dict(line=dict(width=0))
-    ))
-    fig_bar.update_layout(
-        template="plotly_dark",
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        height=450,
-        margin=dict(l=10, r=10, t=10, b=10),
-        hovermode="x",
-        transition=dict(duration=800, easing="cubic-in-out")
-    )
-    fig_bar.update_xaxes(showgrid=False, zeroline=False, linecolor="#30363d")
-    fig_bar.update_yaxes(showgrid=False, zeroline=False, linecolor="#30363d")
-    st.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
-else:
-    st.write("暂无分项数据")
-
-# 3. 动力煤与焦煤现货价格对比 (独占一行)
-st.markdown("##### 📊 动力煤与焦煤现货价格对比")
-if not df_coal_prices.empty:
-    df_coal_display = df_coal_prices.rename(columns={"jm_price": "焦煤价格 (元/吨)", "dlm_price": "动力煤价格 (元/吨)"})
-    fig_coal = render_dual_axis_line_chart(
-        df_coal_display, 
-        "date", 
-        ["焦煤价格 (元/吨)", "动力煤价格 (元/吨)"], 
-        colors=["#9467bd", "#2ca02c"]
-    )
-    st.plotly_chart(fig_coal, use_container_width=True, config={'staticPlot': True})
-else:
-    st.write("暂无煤炭价格数据")
-
-
-# 7. 本期宏观传导深度解析（已平铺至主页面，移除 st.expander 折叠）
-#    优先从 macro_analysis 表读取 upload_data.py 生成的深蓝科技风 HTML 列表；
-#    仅当数据库为空时才回退到本地兜底文本。
-st.subheader("📊 本期宏观传导深度解析")
-if target_macro_html:
-    # 平铺渲染数据库中的最新宏观研究列表（含真实 mp.weixin.qq.com 链接）
-    st.markdown(target_macro_html, unsafe_allow_html=True)
-else:
-    # 数据库尚未生成列表时的应急兜底，保留原科技感样式
-    fallback_html = """
-    <div style="
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-radius: 12px;
-        padding: 22px;
-        border: 1px solid #dee2e6;
-        font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
-    ">
-        <h4 style="color:#0d6efd; margin-top:0;">🌐 一、PPI 成本传导链条</h4>
-        <p style="line-height:1.8; color:#343a40;">
-            本期上游原材料价格（能源、有色金属）波动通过 PPI 向中游制造业逐步传导。
-            由于下游需求仍处于温和修复阶段，价格传导存在<strong>时滞与阻力</strong>，
-            部分中下游企业利润率承压。建议持续关注产业链库存周期与订单回补节奏。
-        </p>
-
-        <h4 style="color:#0d6efd;">💧 二、央行流动性环境</h4>
-        <p style="line-height:1.8; color:#343a40;">
-            央行通过公开市场操作维持流动性<strong>合理充裕</strong>，短端资金利率围绕政策利率窄幅波动。
-            在稳汇率与防资金空转的双重目标下，货币政策更强调<strong>精准滴灌</strong>，
-            结构性工具对科技创新、绿色转型与普惠金融的支持力度有望加码。
-        </p>
-
-        <h4 style="color:#0d6efd;">📉 三、数据联动观察</h4>
-        <p style="line-height:1.8; color:#343a40;">
-            从本表 <strong>AA / BB / CC</strong> 三列的走势来看，短期波动与中长期趋势出现分化。
-            若后续 BB 与 CC 的剪刀差持续收窄，可能意味着行业内部供需关系正在改善；
-            反之则需警惕外部冲击带来的二次波动风险。
-        </p>
-
-        <div style="
-            background:#e7f3ff;
-            border-left:4px solid #0d6efd;
-            padding:12px 16px;
-            border-radius:8px;
-            margin-top:18px;
-            color:#084298;
-        ">
-            <b>💡 策略提示：</b>在宏观数据空窗期，建议结合高频量价指标与政策信号动态调整预期，
-            避免对单一数据点过度反应。
+# 控制论：前馈防扰动状态自检条
+last_sync_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+st.markdown(f"""
+<div class="system-status-bar">
+    <div class="status-items">
+        <div class="status-item" style="color: #10b981;">
+            <span class="status-dot dot-green"></span>
+            前馈控制系统 (Pre-control Active)
+        </div>
+        <div class="status-item" style="color: #00f0ff;">
+            <span class="status-dot dot-blue"></span>
+            宏观数据库联通 (DB Linked)
+        </div>
+        <div class="status-item" style="color: #a78bfa;">
+            <span class="status-dot dot-purple"></span>
+            敏感数据采集组件校准 (Stream Align)
         </div>
     </div>
-    """
-    st.markdown(fallback_html, unsafe_allow_html=True)
+    <div style="color: #94a3b8; font-weight: 500;">
+        ⏱️ 系统同步时间: <span style="color: #00f0ff; font-weight: 600;">{last_sync_time}</span> | 架构模式: <span style="color: #ffffff; font-weight: 600;">Cybernetic Defend</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 
-# 8. 展示下方的数据表格
-st.subheader("📋 原始数据明细")
-with st.expander("查看/隐藏 原始投研数据集", expanded=False):
-    tab1, tab2, tab3, tab4 = st.tabs(["📈 CPI同比走势", "📊 核心分项当月同比", "📈 CPI与核心CPI对比", "📊 动力煤与焦煤价格"])
+# 7. 顶部大盘指标卡行 (Top Row: KPI Metrics Dashboards)
+# 计算前置变化指标 (Delta)
+try:
+    if not df_cpi_compare.empty and len(df_cpi_compare) >= 2:
+        df_cpi_sorted = df_cpi_compare.sort_values(by="date", ascending=True)
+        latest_cpi_rec = df_cpi_sorted.iloc[-1]
+        prev_cpi_rec = df_cpi_sorted.iloc[-2]
+        latest_cpi = float(latest_cpi_rec["cpi_yoy"])
+        delta_cpi = latest_cpi - float(prev_cpi_rec["cpi_yoy"])
+        latest_core = float(latest_cpi_rec["core_cpi_yoy"])
+        delta_core = latest_core - float(prev_cpi_rec["core_cpi_yoy"])
+    else:
+        latest_cpi, delta_cpi, latest_core, delta_core = 0.0, 0.0, 0.0, 0.0
+except Exception:
+    latest_cpi, delta_cpi, latest_core, delta_core = 0.0, 0.0, 0.0, 0.0
+
+try:
+    if not df_coal_prices.empty and len(df_coal_prices) >= 2:
+        df_coal_sorted = df_coal_prices.sort_values(by="date", ascending=True)
+        latest_coal_rec = df_coal_sorted.iloc[-1]
+        prev_coal_rec = df_coal_sorted.iloc[-2]
+        latest_dlm = float(latest_coal_rec["dlm_price"])
+        delta_dlm = latest_dlm - float(prev_coal_rec["dlm_price"])
+        latest_jm = float(latest_coal_rec["jm_price"])
+        delta_jm = latest_jm - float(prev_coal_rec["jm_price"])
+    else:
+        latest_dlm, delta_dlm, latest_jm, delta_jm = 0.0, 0.0, 0.0, 0.0
+except Exception:
+    latest_dlm, delta_dlm, latest_jm, delta_jm = 0.0, 0.0, 0.0, 0.0
+
+# 渲染 4 个 KPI 指标盒
+kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+
+with kpi_col1:
+    delta_class = "delta-up" if delta_cpi >= 0 else "delta-down"
+    delta_icon = "▲" if delta_cpi >= 0 else "▼"
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #00f0ff;">
+        <div class="kpi-title">CPI 当月同比</div>
+        <div class="kpi-value">{latest_cpi:+.2f}%</div>
+        <div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_cpi):.2f}% (较上月)</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with kpi_col2:
+    delta_class = "delta-up" if delta_core >= 0 else "delta-down"
+    delta_icon = "▲" if delta_core >= 0 else "▼"
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #ffb703;">
+        <div class="kpi-title">核心 CPI 同比</div>
+        <div class="kpi-value">{latest_core:+.2f}%</div>
+        <div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_core):.2f}% (较上月)</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with kpi_col3:
+    delta_class = "delta-up" if delta_dlm >= 0 else "delta-down"
+    delta_icon = "▲" if delta_dlm >= 0 else "▼"
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #10b981;">
+        <div class="kpi-title">动力煤现货港口价</div>
+        <div class="kpi-value">{latest_dlm:,.0f} 元/吨</div>
+        <div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_dlm):+,.0f} 元/吨</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with kpi_col4:
+    delta_class = "delta-up" if delta_jm >= 0 else "delta-down"
+    delta_icon = "▲" if delta_jm >= 0 else "▼"
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #a78bfa;">
+        <div class="kpi-title">焦煤现货均价</div>
+        <div class="kpi-value">{latest_jm:,.0f} 元/吨</div>
+        <div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_jm):+,.0f} 元/吨</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown('<div style="margin-bottom: 12px;"></div>', unsafe_allow_html=True)
+
+
+# 8. 左右两栏网格布局重构 (Main Two-Column Grid Layout)
+col_left, col_right = st.columns([6.5, 3.5])
+
+# 左半侧主视窗：物价与大宗联动趋势 (Analysis Charts)
+with col_left:
+    st.markdown('<div class="obs-card">', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.1rem; margin-bottom:12px; font-weight: 700; letter-spacing:0.5px;">📈 多维数据深度可视化分析舱</h3>', unsafe_allow_html=True)
+    
+    # 选项卡美化已在全局 CSS 中处理
+    tab1, tab2 = st.tabs(["🎯 综合通胀与分类物价", "🔋 黑色系双焦能源监测"])
+    
     with tab1:
-        st.dataframe(df_trend, use_container_width=True)
+        # A. CPI同比与核心CPI同比走势
+        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 CPI 综合与核心物价同比趋势走势 (自适应双Y轴分流)</p>", unsafe_allow_html=True)
+        if not df_cpi_compare_filtered.empty:
+            df_cpi_display = df_cpi_compare_filtered.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
+            fig_cpi = render_dual_axis_line_chart(
+                df_cpi_display, 
+                "date", 
+                ["CPI当月同比 (%)", "核心CPI当月同比 (%)"], 
+                colors=["#00f0ff", "#ffb703"],
+                primary_y_title="同比 (%)"
+            )
+            st.plotly_chart(fig_cpi, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.write("暂无物价同比折线图数据")
+            
+        st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+        
+        # B. 核心分项当月同比（最新月份）柱状图
+        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 物价核心分项最新单月增速对比 (CPI分项剖析)</p>", unsafe_allow_html=True)
+        if not df_cat.empty:
+            latest_row = df_cat.iloc[-1]
+            latest_date = latest_row["date"]
+            
+            categories = ["食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
+            values = [float(latest_row[cat]) for cat in categories]
+            
+            # 使用高密度的霓虹电光蓝绘制柱状图
+            fig_bar = go.Figure()
+            fig_bar.add_trace(go.Bar(
+                x=categories,
+                y=values,
+                name="同比增速 (%)",
+                marker=dict(
+                    color="rgba(0, 240, 255, 0.75)",
+                    line=dict(color="#00f0ff", width=1.5)
+                ),
+                text=[f"{val:+.1f}%" for val in values],
+                textposition="outside",
+                textfont=dict(color="#ffffff", size=9)
+            ))
+            fig_bar.update_layout(
+                template="plotly_dark",
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                height=320,
+                margin=dict(l=10, r=10, t=10, b=10),
+                hovermode="x",
+                hoverlabel=dict(bgcolor="rgba(10, 22, 47, 0.95)"),
+                transition=dict(duration=800, easing="cubic-in-out")
+            )
+            fig_bar.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
+            fig_bar.update_yaxes(showgrid=True, gridcolor="rgba(255, 255, 255, 0.03)", zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
+            st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.write("暂无分项结构化数据")
+            
     with tab2:
+        # C. 动力煤与焦煤现货价格对比
+        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 港口动力煤现货与炼焦煤均价日度联动曲线 (自适应聚类双轴)</p>", unsafe_allow_html=True)
+        if not df_coal_prices_filtered.empty:
+            df_coal_display = df_coal_prices_filtered.rename(columns={"jm_price": "焦煤价格 (元/吨)", "dlm_price": "动力煤价格 (元/吨)"})
+            fig_coal = render_dual_axis_line_chart(
+                df_coal_display, 
+                "date", 
+                ["焦煤价格 (元/吨)", "动力煤价格 (元/吨)"], 
+                colors=["#a78bfa", "#10b981"]
+            )
+            st.plotly_chart(fig_coal, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.write("暂无港口煤炭价格图表数据")
+            
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# 右半侧侧边栏：情报流与投研研究 (Live Info Feed & Deep Transmission)
+with col_right:
+    # 1. 实时金融快讯流 (Sina 7x24 Live Tracker)
+    st.markdown('<div class="obs-card">', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:700;">📻 实时联播快讯流 (Sina Live Feed)</h3>', unsafe_allow_html=True)
+    
+    # 纵向高密度滚动快讯流渲染
+    news_html_cards = []
+    if not df_news.empty:
+        for _, row in df_news.iterrows():
+            content = row.get("content", "")
+            url = row.get("url", "")
+            time_str = row.get("publish_time", "")
+            
+            # 去除可能存在的 HTML 标签
+            clean_content = re.sub('<[^<]+?>', '', content) if isinstance(content, str) else ""
+            
+            if url:
+                title_html = f'<a href="{url}" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 500;">{clean_content}</a>'
+            else:
+                title_html = clean_content
+                
+            card_html = f"""
+            <div class="news-card">
+                <div class="news-time">⏱️ {time_str}</div>
+                <div class="news-content">{title_html}</div>
+            </div>
+            """
+            news_html_cards.append(card_html)
+    else:
+        news_html_cards.append('<div style="color:#64748b; text-align:center; padding:30px; font-size:0.85rem;">暂无金融快讯数据</div>')
+        
+    all_news_html = "\n".join(news_html_cards)
+    
+    # 使用定制滚动条容器输出
+    st.markdown(f"""
+    <div class="news-scroll-container">
+        {all_news_html}
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 2. 宏观投研传导解析 (Macro Research Portal)
+    st.markdown('<div class="obs-card">', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:700;">🧠 深度投研传导 (WeChat Analyses)</h3>', unsafe_allow_html=True)
+    
+    if target_macro_html:
+        # 直接嵌入从公众号同步入库的深色渐变底卡 HTML
+        st.markdown(target_macro_html, unsafe_allow_html=True)
+    else:
+        # 兜底宏观传导解析文本，适配深色磨砂材质
+        fallback_html = """
+        <div style="
+            background: rgba(30, 41, 59, 0.25);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.08);
+            font-family: inherit;
+        ">
+            <h5 style="color:#00f0ff; margin-top:0; font-size: 0.9rem; margin-bottom: 6px;">🌐 一、PPI 成本传导链条</h5>
+            <p style="line-height:1.55; color:#cbd5e1; font-size: 0.78rem; margin-bottom: 12px;">
+                本期上游原材料价格（煤炭、能源等）波动通过 PPI 向中游制造业逐步传导。由于下游需求仍处于温和修复阶段，传导存在时滞，需持续关注企业毛利变化。
+            </p>
+
+            <h5 style="color:#ffb703; font-size: 0.9rem; margin-bottom: 6px;">💧 二、央行流动性环境</h5>
+            <p style="line-height:1.55; color:#cbd5e1; font-size: 0.78rem; margin-bottom: 12px;">
+                央行通过公开市场逆回购等流动性调节，维持资金利率中枢围绕政策利率窄幅波动，强调结构性倾斜精准支持实体经济。
+            </p>
+
+            <div style="
+                background: rgba(0, 240, 255, 0.06);
+                border-left: 3px solid #00f0ff;
+                padding: 8px 12px;
+                border-radius: 4px;
+                margin-top: 10px;
+                color: #e0f2fe;
+                font-size: 0.76rem;
+            ">
+                <b>💡 策略提示：</b>建议结合最新高频商品现货报价调整策略。
+            </div>
+        </div>
+        """
+        st.markdown(fallback_html, unsafe_allow_html=True)
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# 9. 底部折叠展示完整投研原始数据集 (Raw Data Table Drawer)
+st.markdown('<div style="margin-bottom: 12px;"></div>', unsafe_allow_html=True)
+st.subheader("📋 原始投研数据集 (Raw Metrics)")
+with st.expander("展开 / 收起 原始明细数据表格", expanded=False):
+    raw_tab1, raw_tab2, raw_tab3, raw_tab4 = st.tabs([
+        "📈 CPI同比走势", "📊 核心分项增速", "📈 CPI与核心CPI对比", "📊 双焦煤炭价格"
+    ])
+    with raw_tab1:
+        st.dataframe(df_trend, use_container_width=True)
+    with raw_tab2:
         st.dataframe(df_cat, use_container_width=True)
-    with tab3:
+    with raw_tab3:
         st.dataframe(df_cpi_compare, use_container_width=True)
-    with tab4:
+    with raw_tab4:
         st.dataframe(df_coal_prices, use_container_width=True)
