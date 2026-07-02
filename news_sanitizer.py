@@ -190,9 +190,9 @@ def sanitize_news_item(rich_text):
         title = m.group(1).strip()
         body = rich_text[m.end():].strip()
     else:
-        # 寻找首个标点分界，截取前 8-12 个字作为语义标题
+        # 寻找首个标点分界，从第 2 字向后查找到第 15 字，作为语义标题首选
         split_idx = 10
-        for idx in range(8, 13):
+        for idx in range(2, 16):
             if idx < len(rich_text) and rich_text[idx] in ['：', ':', '，', ',']:
                 split_idx = idx
                 break
@@ -210,15 +210,20 @@ def sanitize_news_item(rich_text):
     if not title:
         title = "全球要闻"
 
-    # 保证格式: "{title}：{body}。"
-    # 总字数限制为 40 - 60 字 (包括冒号和句号)
-    # len(title) + 1 (冒号) + len(body) + 1 (句号) = [40, 60]
-    # => len(body) 限制在 [38 - len(title), 58 - len(title)]
-    max_body_len = 58 - len(title)
+    # ==========================================
+    # 标题字数前馈拦截分流器
+    # ==========================================
+    if len(title) > 10:
+        # 条件 A: 标题大于 10 个字，触发总结熔断机制。只保留并写出原标题，content 留空，直接追加句号。
+        title_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', title)
+        if len(title_text) > 58:
+            title_text = title_text[:55] + "..."
+        title_text = title_text + "。"
+        title_text = re.sub(r'。+$', '。', title_text)
+        return title_text, ""
 
-    if len(title) > 25:
-        title = title[:23] + "..."
-        max_body_len = 58 - len(title)
+    # 条件 B: 标题 <= 10 个字，采用 {原标题}：{一句话核心简讯} 逻辑，合并总字数 [40, 60]
+    max_body_len = 58 - len(title)
 
     # 累加正文子句
     clauses = [c.strip() for c in re.split(r'[，,；;。！!？?、]', body) if c.strip()]
@@ -266,9 +271,13 @@ def sanitize_news_item(rich_text):
 def ai_summarize(text):
     """
     轻量级 AI 定长摘要：保持原接口签名以向下兼容，返回格式为 "{原标题}：{核心简讯}"
+    当触发熔断时直接返回 "标题。"
     """
     title, content = sanitize_news_item(text)
-    res = f"{title}：{content}"
+    if not content:
+        res = title
+    else:
+        res = f"{title}：{content}"
     res = re.sub(r'。+$', '。', res)
     return res
 
