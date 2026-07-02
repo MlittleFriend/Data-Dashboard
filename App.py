@@ -14,13 +14,14 @@ import schema_aligner
 from news_sanitizer import is_valid_url, sanitize_news_item
 from upload_data import fetch_finance_news
 
-# 版本标识与前馈控制参数 V1.1.3
-VERSION = "V1.1.3"
+# 版本标识与前馈控制参数 V1.1.3.1
+VERSION = "V1.1.3.1"
 
 # 加载并初始化外部技能动态网关
 try:
-    import external_skills.gateway as skill_gateway
-    print(f"[Gateway Init] 动态加载外部技能列表: {[s['name'] for s in skill_gateway.gateway.get_registered_skills()]}")
+    from agent_skill_kernel import init_skills
+    loaded_skills = init_skills()
+    print(f"[Gateway Init] 动态加载外部技能列表: {loaded_skills}")
 except Exception as e:
     print(f"[Gateway Init] 初始化外部技能网关失败: {e}")
 
