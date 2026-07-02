@@ -9,8 +9,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
 
-# 版本标识与前馈控制参数 V1.1.1.2
-VERSION = "V1.1.1.2"
+# 版本标识与前馈控制参数 V1.1.1.3
+VERSION = "V1.1.1.3"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -19,21 +19,63 @@ else:
     def news_fragment(func):
         return func
 
+def is_valid_url(url_val):
+    """
+    检查新闻的 URL 链接是否为有效的外网可达地址，过滤掉灰色死链或空白链接占位符
+    """
+    if not url_val or not isinstance(url_val, str):
+        return False
+    url_val = url_val.strip()
+    if not (url_val.startswith("http://") or url_val.startswith("https://")):
+        return False
+    if url_val in ["http://#", "https://#", "http://", "https://"]:
+        return False
+    if len(url_val) < 12:
+        return False
+    return True
+
+def clean_trailing_incomplete(body_text):
+    """
+    清理截断文本尾部不完整的语气词、连接词、介词或标点符号以确保句子语法完整
+    """
+    incompletes = set([
+        "并", "且", "但", "与", "和", "或", "而", "的", "了", "在", "于", "以", "对", 
+        "此", "本", "该", "这", "那", "有", "无", "非", "是", "从", "由", "向", "被",
+        "把", "让", "使", "及", "等", "进行", "处于", "面临", "针对", "由于", "因为",
+        "所以", "如果", "那么", "虽然", "但是", "不仅", "而且", "根据", "按照", "关于"
+    ])
+    body_text = re.sub(r'[，,；;。！!？?、\s]+$', '', body_text).strip()
+    
+    changed = True
+    while changed and len(body_text) > 3:
+        changed = False
+        for word in incompletes:
+            if body_text.endswith(word):
+                body_text = body_text[:-len(word)].strip()
+                body_text = re.sub(r'[，,；;。！!？?、\s]+$', '', body_text).strip()
+                changed = True
+                break
+    return body_text
+
 def ai_summarize(text):
     """
     轻量级 AI 定长摘要层：对全球新闻实施硬性字数控制（40-60字）与结构规范化排版。
-    格式：【核心实体/主题】+ 精炼事件概述（以句号收尾，不含省略号）
+    格式：【核心实体】+ 精炼事件概述（以单一中文句号收尾，无省略号/无标点堆叠/无半句）
     """
     if not isinstance(text, str):
         return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
         
-    clean_text = re.sub(r'<[^>]+>', '', text).strip()
+    # 彻底清理双括号嵌套与前后空格
+    clean_text = re.sub(r'^[【\[\(（\s]+', '', text)
+    clean_text = re.sub(r'[】\]\)）\s]+$', '', clean_text)
+    clean_text = re.sub(r'<[^>]+>', '', clean_text)
+    clean_text = clean_text.strip()
+    
     if not clean_text:
         return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
 
-    # 1. 精准提取规范的核心实体名词（只放核心实体/主体/国家地区，长度2-8字，不含动词）
+    # 1. 提取核心实体 (只放机构/公司/主体/地区，长度2-8字，不含动词)
     def extract_entity(t):
-        # 优先匹配开头的括号内容
         m_bracket = re.match(r'^[【\[\(（]([^】\]\)）]+)[】\]\)）]', t)
         if m_bracket:
             candidate = m_bracket.group(1).strip()
@@ -1010,7 +1052,8 @@ with col_right:
                     
                 clean_content = re.sub('<[^<]+?>', '', summarized_content)
                 
-                if url:
+                # V1.1.1.3: 引入 is_valid_url 进行死链过滤
+                if is_valid_url(url):
                     title_html = f'<a href="{url}" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 500;">{clean_content}</a>'
                 else:
                     title_html = clean_content
