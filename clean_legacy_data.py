@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-clean_legacy_data.py | V1.1.1.10 存量数据全自动清洗脚本
+clean_legacy_data.py | V1.1.1.11 存量数据全自动清洗脚本
 扫描 SQLite 数据库 text_records 表，对历史旧格式记录执行：
 1. 内容重新经过 ai_summarize 标准化（40-60 字、方括号实体名词死锁并保证唯一性）
 2. URL 经过 is_valid_url 前馈审查，非法无链快讯物理删除抹除
@@ -77,8 +77,8 @@ def clean_db(db_path):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("🧹 V1.1.1.10 存量快讯数据死链物理抹除与唯一方括号强制约束")
+    print("🧹 V1.1.1.11 存量快讯数据死链物理抹除与唯一方括号强制约束")
     print("=" * 60)
     for db in DB_FILES:
         clean_db(db)
-    print("\n[OK] 存量清洗脚本执行完毕，数据链路已对齐 V1.1.1.10 标准。")
+    print("\n[OK] 存量清洗脚本执行完毕，数据链路已对齐 V1.1.1.11 标准。")

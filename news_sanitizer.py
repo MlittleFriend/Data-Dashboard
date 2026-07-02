@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-news_sanitizer.py | 实时快讯终极清洗层 (V1.1.1.10)
+news_sanitizer.py | 实时快讯终极清洗层 (V1.1.1.11)
 负责：URL 前馈合法性审查、方括号实体名词死锁、AI 定长摘要。
 本模块保持零 Streamlit 依赖，可被 App.py 与离线清洗脚本共同引用。
 """

@@ -10,8 +10,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
 
-# 版本标识与前馈控制参数 V1.1.1.10
-VERSION = "V1.1.1.10"
+# 版本标识与前馈控制参数 V1.1.1.11
+VERSION = "V1.1.1.11"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
