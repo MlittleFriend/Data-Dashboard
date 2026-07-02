@@ -14,6 +14,21 @@
         },
         "required": ["text"]
       }
+    },
+    {
+      "name": "plan_agentic_workflow",
+      "module": "superpowers_workflow",
+      "description": "运用 Superpowers 方法论针对目标任务自动拆解规划、隔离、TDD、验证与复盘工作流方案。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "task_description": {
+            "type": "string",
+            "description": "待分析和规划的目标任务描述"
+          }
+        },
+        "required": ["task_description"]
+      }
     }
   ]
 }
