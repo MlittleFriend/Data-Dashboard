@@ -14,8 +14,8 @@ import schema_aligner
 from news_sanitizer import ai_summarize, is_valid_url
 from upload_data import fetch_finance_news
 
-# 版本标识与前馈控制参数 V1.1.2.1
-VERSION = "V1.1.2.1"
+# 版本标识与前馈控制参数 V1.1.2.2
+VERSION = "V1.1.2.2"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):

@@ -46,41 +46,73 @@ def calculate_sha256(filepath):
         return ""
 
 
-def find_date_column(df):
+def is_numeric_column(df, col, min_numeric_ratio=0.5):
     """
-    扫描每列的前 20 行，统计符合日期格式的单元格数。
-    返回符合日期格式数量最多且大于 2 的列名。
+    检查列中非空单元格的数值化比例，排除主要是文本（元数据）或空列
     """
-    best_col = None
-    max_date_count = 0
+    non_null_series = df[col].dropna()
+    if len(non_null_series) < 5:
+        return False
+    start_idx = min(10, len(non_null_series) // 2)
+    sub_series = non_null_series.iloc[start_idx:]
+    if len(sub_series) == 0:
+        return False
+    numeric_count = pd.to_numeric(sub_series, errors="coerce").notnull().sum()
+    ratio = numeric_count / len(sub_series)
+    return ratio >= min_numeric_ratio
+
+
+def find_closest_date_column(df, value_cols):
+    """
+    在 value_cols 识别出来后，在同一工作表中寻找最合理的日期列。
+    首选位于值列左侧且最邻近的、能解析为日期的列。
+    """
+    date_cols = []
     for col in df.columns:
         date_count = 0
-        for val in df[col].head(20):
+        for val in df[col].head(30):
             if pd.isnull(val):
                 continue
             if isinstance(val, (datetime, pd.Timestamp)):
                 date_count += 1
                 continue
             val_str = str(val).strip()
-            # 匹配 1987-01-31 00:00:00 或 2026/04/09 或 20260409 格式
             if re.match(r'^\d{4}[-/]\d{1,2}[-/]\d{1,2}', val_str) or re.match(r'^\d{4}\d{2}\d{2}', val_str):
                 date_count += 1
-        if date_count > max_date_count:
-            max_date_count = date_count
-            best_col = col
-    if max_date_count >= 2:
-        return best_col
-    return None
+        if date_count >= 3:
+            date_cols.append(col)
+            
+    if not date_cols:
+        return None
+        
+    if not value_cols:
+        return date_cols[0]
 
-
-def map_columns_by_keywords(df, sheet_type, date_col):
-    """
-    在非日期列中，扫描前 10 行的单元格文本与列名，寻找对应的关键指示词。
-    返回一个 dict，映射标准字段名到原始列名。
-    """
-    mappings = {"date": date_col}
+    first_val_col = value_cols[0]
+    val_idx = list(df.columns).index(first_val_col)
     
-    # 定义各列查找关键词
+    left_date_cols = []
+    for dc in date_cols:
+        dc_idx = list(df.columns).index(dc)
+        if dc_idx < val_idx:
+            left_date_cols.append((dc_idx, dc))
+            
+    if left_date_cols:
+        left_date_cols.sort(key=lambda x: x[0], reverse=True)
+        return left_date_cols[0][1]
+        
+    date_cols_with_dist = []
+    for dc in date_cols:
+        dc_idx = list(df.columns).index(dc)
+        date_cols_with_dist.append((abs(dc_idx - val_idx), dc))
+    date_cols_with_dist.sort(key=lambda x: x[0])
+    return date_cols_with_dist[0][1]
+
+
+def map_columns_by_keywords(df, sheet_type):
+    """
+    在数值列中，根据关键字规则对齐标准列名。
+    """
     keyword_rules = {}
     if sheet_type == "cpi_trend":
         keyword_rules = {
@@ -108,11 +140,11 @@ def map_columns_by_keywords(df, sheet_type, date_col):
             "其他": [r"其他", r"其它", r"其他用品", r"其他用品及服务"]
         }
 
-    # 遍历标准字段进行寻找
+    mappings = {}
     for std_field, patterns in keyword_rules.items():
         found = False
         for col in df.columns:
-            if col == date_col:
+            if not is_numeric_column(df, col):
                 continue
             # 检查前 10 行及列名本身
             for cell_val in [str(col)] + list(df[col].head(10)):
@@ -147,24 +179,12 @@ def process_sheet(excel_file, sheet_name, sheet_type):
     """读取指定工作表，并利用语义规则识别、自动映射列，最终返回清洗后的 DataFrame 和映射详情"""
     df = pd.read_excel(excel_file, sheet_name=sheet_name)
     
-    # 1. 寻找日期列
-    date_col = find_date_column(df)
-    if date_col is None:
-        # Fallback date column index by position
-        if sheet_type == "cpi_trend":
-            date_col = df.columns[34]
-        elif sheet_type in ["dashboard_cpi_compare", "cpi_categories"]:
-            date_col = df.columns[11]
-        elif sheet_type == "dashboard_coal_prices":
-            date_col = df.columns[26]
-            
-    # 2. 映射其他列
-    mappings = map_columns_by_keywords(df, sheet_type, date_col)
+    # 1. 首先对齐指标数值列
+    mappings = map_columns_by_keywords(df, sheet_type)
     
-    # 3. 兜底补全缺失字段
-    if sheet_type == "cpi_trend":
-        if "cpi_yoy" not in mappings:
-            mappings["cpi_yoy"] = df.columns[35]
+    # 2. 补全可能缺失的指标映射（作为硬编码兜底保障）
+    if sheet_type == "cpi_trend" and "cpi_yoy" not in mappings:
+        mappings["cpi_yoy"] = df.columns[35]
     elif sheet_type == "dashboard_cpi_compare":
         if "cpi_yoy" not in mappings:
             mappings["cpi_yoy"] = df.columns[13]
@@ -180,6 +200,20 @@ def process_sheet(excel_file, sheet_name, sheet_type):
         for idx, cat in enumerate(cats):
             if cat not in mappings:
                 mappings[cat] = df.columns[13 + idx]
+
+    # 3. 根据值列在左侧寻找最临近的日期时间主键列
+    value_cols = [v for k, v in mappings.items() if k != "date"]
+    date_col = find_closest_date_column(df, value_cols)
+    if date_col is None:
+        # Fallback date column index by position
+        if sheet_type == "cpi_trend":
+            date_col = df.columns[34]
+        elif sheet_type in ["dashboard_cpi_compare", "cpi_categories"]:
+            date_col = df.columns[11]
+        elif sheet_type == "dashboard_coal_prices":
+            date_col = df.columns[26]
+            
+    mappings["date"] = date_col
 
     # 4. 提取需要的列并重命名
     selected_cols = []
