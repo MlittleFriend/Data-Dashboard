@@ -9,8 +9,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
 
-# 版本标识与前馈控制参数 V1.1.1.0
-VERSION = "V1.1.1.1"
+# 版本标识与前馈控制参数 V1.1.1.2
+VERSION = "V1.1.1.2"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -22,80 +22,128 @@ else:
 def ai_summarize(text):
     """
     轻量级 AI 定长摘要层：对全球新闻实施硬性字数控制（40-60字）与结构规范化排版。
-    格式：【核心实体/主题】+ 精炼事件概述
+    格式：【核心实体/主题】+ 精炼事件概述（以句号收尾，不含省略号）
     """
-    # 1. 彻底清理双括号嵌套与前导空格，防溢出控制
-    clean_text = re.sub(r'^[【\[\(（\s]+', '', text) if isinstance(text, str) else ""
-    clean_text = re.sub(r'[】\]\)）\s]+$', '', clean_text)
-    clean_text = re.sub(r'<[^>]+>', '', clean_text)
-    clean_text = clean_text.strip()
-    
-    if not clean_text:
+    if not isinstance(text, str):
         return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
         
-    # 2. 精准寻找核心实体，避免谓语动词或断句逻辑塞入括号
-    entity = "全球要闻"
-    entities = [
-        "日本央行", "美联储", "欧央行", "英国央行", "央行", "财政部", "日本生命保险", "川崎重工",
-        "国家统计局", "发改委", "商务部", "A股", "美股", "港股", "英伟达", "特斯拉",
-        "微软", "苹果", "谷歌", "沙特阿美", "动力煤", "焦煤", "煤炭", "石油", "黄金"
-    ]
-    for ent in entities:
-        if ent in clean_text:
-            entity = ent
-            break
-    else:
-        # 正则提取新闻发布主体/国家地区单名词，以常见动词为边界防止动作溢出到括号内
-        verbs = r'(?:发布|表示|指出|宣布|称|公布|报道|警告|印发|公告|举行|开展|建议|强调|警示|印发|下发)'
-        match_verb = re.search(r'^([^：，,。—\s【】]{2,12}?)(?:' + verbs + r')', clean_text)
-        if match_verb:
-            entity = match_verb.group(1).strip()
-        else:
-            # 常见机构/主体后缀匹配
-            org_suffixes = r'(?:厅|部|局|台|委|会|公司|集团|银行|证券|交易所|央行|政府|协会|联社|研究所|中心)'
-            match_suffix = re.search(r'^([^：，,。—\s【】]{2,12}?' + org_suffixes + r')', clean_text)
-            if match_suffix:
-                entity = match_suffix.group(1).strip()
-            else:
-                # 兜底匹配最长6个非动词词首名词
-                match_noun = re.match(r'^([^：，,。—\s【】]{2,6})', clean_text)
-                if match_noun:
-                    candidate = match_noun.group(1).strip()
-                    verbs_list = ["发布", "表示", "指出", "宣布", "称", "公布", "报道", "警告", "印发", "公告", "举行", "开展", "达", "超", "涨", "跌", "创", "降", "增"]
-                    if not any(v in candidate for v in verbs_list):
-                        entity = candidate
+    clean_text = re.sub(r'<[^>]+>', '', text).strip()
+    if not clean_text:
+        return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
 
-    # 3. 清理正文中的重复实体词，获取精炼事件概述
-    body = clean_text
-    if body.startswith(entity):
-        body = body[len(entity):].lstrip("：，, ")
-    elif body.startswith(f"【{entity}】"):
-        body = body[len(f"【{entity}】"):].lstrip("：，, ")
+    # 1. 精准提取规范的核心实体名词（只放核心实体/主体/国家地区，长度2-8字，不含动词）
+    def extract_entity(t):
+        # 优先匹配开头的括号内容
+        m_bracket = re.match(r'^[【\[\(（]([^】\]\)）]+)[】\]\)）]', t)
+        if m_bracket:
+            candidate = m_bracket.group(1).strip()
+            candidate = re.sub(r'[【】\[\]\(\)（）]', '', candidate)
+            verbs_list = ["发布", "表示", "指出", "宣布", "称", "公布", "报道", "警告", "印发", "公告", "举行", "开展", "达", "超", "涨", "跌", "创", "降", "增", "取消", "恢复", "调整"]
+            if not any(v in candidate for v in verbs_list):
+                if 2 <= len(candidate) <= 8:
+                    return candidate
+                    
+        # 剥离可能存在的头部括号，从正文主体中识别实体
+        text_body = re.sub(r'^[【\[\(（][^】\]\)）]+[】\]\)）]', '', t).strip()
         
-    body = re.sub(r'[。，,；;！!]+$', '', body).strip()
-    
-    # 4. 前馈字数控制：先完整输出规范括号标签，字数截断作用在概述末尾
+        # A. 主体 + 常见动词
+        verbs = r'(?:发布|表示|指出|宣布|称|公布|报道|警告|印发|公告|举行|开展|建议|强调|警示|印发|下发)'
+        match_verb = re.search(r'^([^：，,。—\s【】（）]{2,10}?)(?:' + verbs + r')', text_body)
+        if match_verb:
+            candidate = match_verb.group(1).strip()
+            if 2 <= len(candidate) <= 8:
+                return candidate
+                
+        # B. 常见机构/主体后缀
+        org_suffixes = r'(?:厅|部|局|台|委|会|公司|集团|银行|证券|交易所|央行|政府|协会|联社|研究所|中心)'
+        match_suffix = re.search(r'^([^：，,。—\s【】（）]{2,10}?' + org_suffixes + r')', text_body)
+        if match_suffix:
+            candidate = match_suffix.group(1).strip()
+            if 2 <= len(candidate) <= 8:
+                return candidate
+                
+        # C. 常用宏观名词词库
+        entities = [
+            "日本央行", "美联储", "欧央行", "英国央行", "国家统计局", "发改委", "商务部",
+            "财政部", "交通运输部", "水利厅", "气象局", "气象台", "川崎重工", "日本生命保险",
+            "联合国", "世界银行", "欧盟", "中国", "美国", "日本", "英国", "法国", "德国", 
+            "俄罗斯", "沙特", "欧佩克", "OPEC", "动力煤", "焦煤", "石油", "黄金"
+        ]
+        for ent in entities:
+            if ent in text_body[:20]:
+                return ent
+                
+        # D. 兜底匹配前几个字符的干净名词
+        match_noun = re.match(r'^([^：，,。—\s【】（）]{2,5})', text_body)
+        if match_noun:
+            candidate = match_noun.group(1).strip()
+            verbs_list = ["发布", "表示", "指出", "宣布", "称", "公布", "报道", "警告", "印发", "公告", "举行", "开展", "达", "超", "涨", "跌", "创", "降", "增", "取消", "恢复", "调整"]
+            if not any(v in candidate for v in verbs_list):
+                return candidate
+                
+        return "全球要闻"
+
+    entity = extract_entity(clean_text)
     prefix = f"【{entity}】"
-    target_min = 40
-    target_max = 60
     
-    min_body_len = target_min - len(prefix)
-    max_body_len = target_max - len(prefix) - 3  # 为 '...' 留出空间
-    
-    if len(prefix + body) > target_max:
-        body = body[:max_body_len] + "..."
-    elif len(prefix + body) < target_min:
-        filler = "，本观察哨正对此热点持续进行高频跟踪与传导分析监测。"
-        needed = target_min - len(prefix + body)
-        body = body + filler[:needed]
+    # 2. 剥离正文开头的实体前缀，还原概述描述
+    text_body = re.sub(r'^[【\[\(（][^】\]\)）]+[】\]\)）]', '', clean_text).strip()
+    if text_body.startswith(entity):
+        text_body = text_body[len(entity):].lstrip("：，, ")
         
-    summary = f"{prefix}{body}"
+    # 3. 分句并以前馈控制重构 40-60 字以“句号（。）”结尾的完整短句
+    # 将文本按照标点符号分句
+    clauses = [c.strip() for c in re.split(r'[，,；;。！!？?]', text_body) if c.strip()]
     
-    # 二次对齐极值约束
-    if len(summary) < target_min:
-        summary = summary + "。" * (target_min - len(summary))
-    elif len(summary) > target_max:
-        summary = summary[:target_max-3] + "..."
+    accumulated_body = ""
+    for c in clauses:
+        # 尝试将下一子句加入
+        separator = "，" if accumulated_body else ""
+        test_body = accumulated_body + separator + c
+        # 加上 prefix 和末尾句号的总长度不能超过 60 字
+        if len(prefix) + len(test_body) + 1 <= 60:
+            accumulated_body = test_body
+        else:
+            break
+            
+    # 如果第一句就超过了 60 字限制，必须对第一句强制截断并拼接 grammatically complete 结尾
+    if not accumulated_body and clauses:
+        first_clause = clauses[0]
+        # 允许的最大正文长度：60 - prefix长度 - 1(句号)
+        max_b_len = 60 - len(prefix) - 1
+        # 用优雅的动作结尾填补截断
+        suffix = "，市场对此高度关注"
+        safe_len = max_b_len - len(suffix)
+        if safe_len > 10:
+            accumulated_body = first_clause[:safe_len] + suffix
+        else:
+            accumulated_body = first_clause[:max_b_len]
+            
+    # 4. 二次对齐 [40, 60] 字的物理空间限制，太短时补充完整的宏观提示句以句号结尾
+    if len(prefix) + len(accumulated_body) + 1 < 40:
+        fillers = [
+            "，行业后续走向备受关注",
+            "，宏观传导效应影响深远",
+            "，市场主体对此保持高度关注",
+            "，本观察哨将持续跟踪报道相关动态"
+        ]
+        # 尝试填入能满足 [40, 60] 的最长 filler
+        for filler in fillers:
+            if 40 <= len(prefix) + len(accumulated_body) + len(filler) + 1 <= 60:
+                accumulated_body += filler
+                break
+        else:
+            # 兜底直接补齐
+            needed = 40 - (len(prefix) + len(accumulated_body) + 1)
+            accumulated_body += "，宏观跟踪报道持续进行中"[:needed]
+            
+    summary = f"{prefix}{accumulated_body}。"
+    
+    # 终极越界防护，强制截断（防极端情况发生，以句号收尾）
+    if len(summary) > 60:
+        summary = summary[:59] + "。"
+    elif len(summary) < 40:
+        summary = summary + "。" * (40 - len(summary))
         
     return summary
 
