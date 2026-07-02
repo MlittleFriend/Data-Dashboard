@@ -232,31 +232,40 @@ st.markdown("""
     }
     
     .news-card {
-        background: rgba(14, 28, 59, 0.35);
-        border-left: 3px solid #00bfff;
-        padding: 10px 12px;
-        margin-bottom: 8px;
-        border-radius: 4px;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: transparent !important;
+        border-bottom: 1px solid rgba(0, 240, 255, 0.12) !important;
+        padding: 10px 4px !important;
+        margin-bottom: 0px !important;
+        border-radius: 0px !important;
+        transition: all 0.2s ease !important;
+        box-shadow: none !important;
     }
     .news-card:hover {
-        background: rgba(14, 28, 59, 0.6);
-        transform: translateX(3px);
-        border-left-color: #00f0ff;
-        box-shadow: 0 4px 16px rgba(0, 240, 255, 0.05);
+        background: rgba(11, 21, 40, 0.4) !important;
+        padding-left: 8px !important;
+        border-bottom-color: rgba(0, 240, 255, 0.35) !important;
     }
     .news-time {
-        font-size: 0.68rem;
-        color: #7a8c9e;
-        margin-bottom: 4px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
+        font-size: 0.7rem !important;
+        color: #8a99ad !important;
+        margin-bottom: 4px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.5px !important;
     }
     .news-content {
-        font-size: 0.8rem;
-        color: #cbd5e1;
-        line-height: 1.45;
+        font-size: 0.8rem !important;
+        color: #cbd5e1 !important;
+        line-height: 1.45 !important;
+    }
+    .news-content a {
+        color: #00f0ff !important;
+        text-decoration: none !important;
+        font-weight: 500 !important;
+        transition: color 0.2s ease !important;
+    }
+    .news-content a:hover {
+        color: #0072ff !important;
+        text-decoration: underline !important;
     }
     
     /* 选项卡 (Tabs) 美化 */
@@ -687,46 +696,22 @@ kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
 with kpi_col1:
     delta_class = "delta-up" if delta_cpi >= 0 else "delta-down"
     delta_icon = "▲" if delta_cpi >= 0 else "▼"
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: #00f0ff;">
-        <div class="kpi-title">CPI 当月同比</div>
-        <div class="kpi-value">{latest_cpi:+.2f}%</div>
-        <div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_cpi):.2f}% (较上月)</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card" style="border-top-color: #00f0ff;"><div class="kpi-title">CPI 当月同比</div><div class="kpi-value">{latest_cpi:+.2f}%</div><div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_cpi):.2f}% (较上月)</div></div>', unsafe_allow_html=True)
 
 with kpi_col2:
     delta_class = "delta-up" if delta_core >= 0 else "delta-down"
     delta_icon = "▲" if delta_core >= 0 else "▼"
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: #ffb703;">
-        <div class="kpi-title">核心 CPI 同比</div>
-        <div class="kpi-value">{latest_core:+.2f}%</div>
-        <div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_core):.2f}% (较上月)</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card" style="border-top-color: #ffb703;"><div class="kpi-title">核心 CPI 同比</div><div class="kpi-value">{latest_core:+.2f}%</div><div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_core):.2f}% (较上月)</div></div>', unsafe_allow_html=True)
 
 with kpi_col3:
     delta_class = "delta-up" if delta_dlm >= 0 else "delta-down"
     delta_icon = "▲" if delta_dlm >= 0 else "▼"
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: #10b981;">
-        <div class="kpi-title">动力煤现货港口价</div>
-        <div class="kpi-value">{latest_dlm:,.0f} 元/吨</div>
-        <div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_dlm):+,.0f} 元/吨</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card" style="border-top-color: #10b981;"><div class="kpi-title">动力煤现货港口价</div><div class="kpi-value">{latest_dlm:,.0f} 元/吨</div><div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_dlm):+,.0f} 元/吨</div></div>', unsafe_allow_html=True)
 
 with kpi_col4:
     delta_class = "delta-up" if delta_jm >= 0 else "delta-down"
     delta_icon = "▲" if delta_jm >= 0 else "▼"
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: #a78bfa;">
-        <div class="kpi-title">焦煤现货均价</div>
-        <div class="kpi-value">{latest_jm:,.0f} 元/吨</div>
-        <div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_jm):+,.0f} 元/吨</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card" style="border-top-color: #a78bfa;"><div class="kpi-title">焦煤现货均价</div><div class="kpi-value">{latest_jm:,.0f} 元/吨</div><div class="kpi-delta {delta_class}">{delta_icon} {abs(delta_jm):+,.0f} 元/吨</div></div>', unsafe_allow_html=True)
 
 st.markdown('<div style="margin-bottom: 12px;"></div>', unsafe_allow_html=True)
 
@@ -839,24 +824,15 @@ with col_right:
             else:
                 title_html = clean_content
                 
-            card_html = f"""
-            <div class="news-card">
-                <div class="news-time">⏱️ {time_str}</div>
-                <div class="news-content">{title_html}</div>
-            </div>
-            """
+            card_html = f'<div class="news-card"><div class="news-time">⏱️ {time_str}</div><div class="news-content">{title_html}</div></div>'
             news_html_cards.append(card_html)
     else:
         news_html_cards.append('<div style="color:#64748b; text-align:center; padding:30px; font-size:0.85rem;">暂无金融快讯数据</div>')
         
     all_news_html = "\n".join(news_html_cards)
     
-    # 使用定制滚动条容器输出
-    st.markdown(f"""
-    <div class="news-scroll-container">
-        {all_news_html}
-    </div>
-    """, unsafe_allow_html=True)
+    # 使用定制滚动条容器输出，移除前导空格以防被解析为 Markdown 代码块
+    st.markdown(f'<div class="news-scroll-container">{all_news_html}</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     # 2. 宏观投研传导解析 (Macro Research Portal)
@@ -868,37 +844,13 @@ with col_right:
         st.markdown(target_macro_html, unsafe_allow_html=True)
     else:
         # 兜底宏观传导解析文本，适配深色磨砂材质
-        fallback_html = """
-        <div style="
-            background: rgba(30, 41, 59, 0.25);
-            border-radius: 8px;
-            padding: 15px;
-            border: 1px solid rgba(0, 240, 255, 0.08);
-            font-family: inherit;
-        ">
-            <h5 style="color:#00f0ff; margin-top:0; font-size: 0.9rem; margin-bottom: 6px;">🌐 一、PPI 成本传导链条</h5>
-            <p style="line-height:1.55; color:#cbd5e1; font-size: 0.78rem; margin-bottom: 12px;">
-                本期上游原材料价格（煤炭、能源等）波动通过 PPI 向中游制造业逐步传导。由于下游需求仍处于温和修复阶段，传导存在时滞，需持续关注企业毛利变化。
-            </p>
-
-            <h5 style="color:#ffb703; font-size: 0.9rem; margin-bottom: 6px;">💧 二、央行流动性环境</h5>
-            <p style="line-height:1.55; color:#cbd5e1; font-size: 0.78rem; margin-bottom: 12px;">
-                央行通过公开市场逆回购等流动性调节，维持资金利率中枢围绕政策利率窄幅波动，强调结构性倾斜精准支持实体经济。
-            </p>
-
-            <div style="
-                background: rgba(0, 240, 255, 0.06);
-                border-left: 3px solid #00f0ff;
-                padding: 8px 12px;
-                border-radius: 4px;
-                margin-top: 10px;
-                color: #e0f2fe;
-                font-size: 0.76rem;
-            ">
-                <b>💡 策略提示：</b>建议结合最新高频商品现货报价调整策略。
-            </div>
-        </div>
-        """
+        fallback_html = """<div style="background: rgba(30, 41, 59, 0.25); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 240, 255, 0.08); font-family: inherit;">
+<h5 style="color:#00f0ff; margin-top:0; font-size: 0.9rem; margin-bottom: 6px;">🌐 一、PPI 成本传导链条</h5>
+<p style="line-height:1.55; color:#cbd5e1; font-size: 0.78rem; margin-bottom: 12px;">本期上游原材料价格（煤炭、能源等）波动通过 PPI 向中游制造业逐步传导。由于下游需求仍处于温和修复阶段，传导存在时滞，需持续关注企业毛利变化。</p>
+<h5 style="color:#ffb703; font-size: 0.9rem; margin-bottom: 6px;">💧 二、央行流动性环境</h5>
+<p style="line-height:1.55; color:#cbd5e1; font-size: 0.78rem; margin-bottom: 12px;">央行通过公开市场逆回购等流动性调节，维持资金利率中枢围绕政策利率窄幅波动，强调结构性倾斜精准支持实体经济。</p>
+<div style="background: rgba(0, 240, 255, 0.06); border-left: 3px solid #00f0ff; padding: 8px 12px; border-radius: 4px; margin-top: 10px; color: #e0f2fe; font-size: 0.76rem;"><b>💡 策略提示：</b>建议结合最新高频商品现货报价调整策略。</div>
+</div>"""
         st.markdown(fallback_html, unsafe_allow_html=True)
         
     st.markdown('</div>', unsafe_allow_html=True)
