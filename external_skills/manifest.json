@@ -1,0 +1,19 @@
+{
+  "skills": [
+    {
+      "name": "analyze_sentiment",
+      "module": "sentiment_analyzer",
+      "description": "分析给定文本的情感倾向性 (极性比例)。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "待分析的快讯或文本内容"
+          }
+        },
+        "required": ["text"]
+      }
+    }
+  ]
+}
