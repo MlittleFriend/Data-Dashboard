@@ -10,8 +10,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
 
-# 版本标识与前馈控制参数 V1.1.1.6
-VERSION = "V1.1.1.6"
+# 版本标识与前馈控制参数 V1.1.1.10
+VERSION = "V1.1.1.10"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -878,20 +878,28 @@ with col_right:
                 url = row.get("url", "")
                 time_str = row.get("publish_time", "")
                 
-                # V1.1.1.5: 终极前馈清洗——未被 daemon 转换的记录在此处强制标准化
+                # V1.1.1.10: 终极前馈清洗——未被 daemon 转换的记录在此处强制标准化
                 c_str = str(content)
                 if c_str.startswith("【") and "】" in c_str[:15] and 40 <= len(c_str) <= 60:
                     summarized_content = c_str
                 else:
                     summarized_content = ai_summarize(c_str)
 
+                # 强制在最开头保留唯一一套【】方括号，剥离其余所有【】与[]
+                if summarized_content.startswith("【"):
+                    parts = summarized_content.split("】", 1)
+                    if len(parts) > 1:
+                        prefix = parts[0] + "】"
+                        body = parts[1].replace("【", "").replace("】", "").replace("[", "").replace("]", "")
+                        summarized_content = prefix + body
+
                 clean_content = re.sub('<[^<]+?>', '', summarized_content)
 
-                # V1.1.1.5: 前馈死链审查——非法 URL 强制 DOM 降级解包为纯文本
-                if is_valid_url(url):
-                    title_html = f'<a href="{url}" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 500;">{clean_content}</a>'
-                else:
-                    title_html = f'<span class="news-text-plain">{clean_content}</span>'
+                # V1.1.1.10: 链接硬拦截——无有效链接快讯直接物理剔除，保证 100% 可点击
+                if not is_valid_url(url):
+                    continue
+                
+                title_html = f'<a href="{url}" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 500;">{clean_content}</a>'
 
                 card_html = f'<div class="news-card"><div class="news-time">⏱️ {time_str}</div><div class="news-content">{title_html}</div></div>'
                 news_html_cards.append(card_html)

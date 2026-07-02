@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-news_sanitizer.py | 实时快讯终极清洗层 (V1.1.1.6)
+news_sanitizer.py | 实时快讯终极清洗层 (V1.1.1.10)
 负责：URL 前馈合法性审查、方括号实体名词死锁、AI 定长摘要。
 本模块保持零 Streamlit 依赖，可被 App.py 与离线清洗脚本共同引用。
 """
@@ -299,6 +299,8 @@ def ai_summarize(text):
     # 4. 完整分句累加出的 body 保持原貌；仅截断路径已做清洗
 
     # 5. 二次对齐 [40, 60] 字的物理空间限制
+    # 清理 body 中的所有方括号，保证整条快讯有且仅有开头的一套【】
+    accumulated_body = accumulated_body.replace("【", "").replace("】", "").replace("[", "").replace("]", "")
     summary = f"{prefix}{accumulated_body}。"
     summary = re.sub(r'。+$', '。', summary)
 

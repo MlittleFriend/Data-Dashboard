@@ -12,6 +12,7 @@ import requests
 from datetime import datetime
 import openpyxl
 import re
+from news_sanitizer import is_valid_url
 
 DB_NAME = "my_data.db"
 EXCEL_FILE = "26630.xlsx"
@@ -157,7 +158,8 @@ def generate_and_save_macro_analysis():
 
 def fetch_finance_news(limit=5):
     """4. 实时在线抓取新浪 7x24 快讯以供顶部滚动横幅展现"""
-    url = f"https://zhibo.sina.com.cn/api/zhibo/feed?page=1&page_size={limit}&zhibo_id=152&tag_id=0&dire=1&dpc=1"
+    api_limit = max(limit * 3, 20)
+    url = f"https://zhibo.sina.com.cn/api/zhibo/feed?page=1&page_size={api_limit}&zhibo_id=152&tag_id=0&dire=1&dpc=1"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
@@ -165,15 +167,20 @@ def fetch_finance_news(limit=5):
         response = requests.get(url, headers=headers, timeout=15)
         news_list = response.json().get("result", {}).get("data", {}).get("feed", {}).get("list", [])
         records = []
-        for item in news_list[:limit]:
+        for item in news_list:
+            doc_url = item.get("docurl", "").strip()
+            if not is_valid_url(doc_url):
+                continue
             records.append({
                 "id": item.get("id"),
                 "publish_time": item.get("create_time"),
                 "content": item.get("rich_text", "").strip(),
-                "url": item.get("docurl", "").strip(),
+                "url": doc_url,
                 "source": "新浪财经 7×24",
                 "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             })
+            if len(records) >= limit:
+                break
         return records
     except Exception as e:
         print(f"新浪快讯网络抓取失败: {e}")
