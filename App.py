@@ -5,12 +5,13 @@ import threading
 import time
 from datetime import datetime
 from upload_data import fetch_finance_news
+from news_sanitizer import is_valid_url, ai_summarize
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
 
-# 版本标识与前馈控制参数 V1.1.1.4
-VERSION = "V1.1.1.4"
+# 版本标识与前馈控制参数 V1.1.1.5
+VERSION = "V1.1.1.5"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -18,223 +19,6 @@ if hasattr(st, "fragment"):
 else:
     def news_fragment(func):
         return func
-
-def is_valid_url(url_val):
-    """
-    检查新闻的 URL 链接是否为有效的外网可达地址，过滤掉灰色死链或空白链接占位符
-    """
-    if not url_val or not isinstance(url_val, str):
-        return False
-    url_val = url_val.strip()
-    if not (url_val.startswith("http://") or url_val.startswith("https://")):
-        return False
-    if url_val in ["http://#", "https://#", "http://", "https://"]:
-        return False
-    if len(url_val) < 12:
-        return False
-    return True
-
-def clean_trailing_incomplete(body_text):
-    """
-    清理截断文本尾部不完整的语气词、连接词、介词或标点符号以确保句子语法完整
-    """
-    incompletes = set([
-        "并", "且", "但", "与", "和", "或", "而", "的", "了", "在", "于", "以", "对", 
-        "此", "本", "该", "这", "那", "有", "无", "非", "是", "从", "由", "向", "被",
-        "把", "让", "使", "及", "等", "进行", "处于", "面临", "针对", "由于", "因为",
-        "所以", "如果", "那么", "虽然", "但是", "不仅", "而且", "根据", "按照", "关于"
-    ])
-    body_text = re.sub(r'[，,；;。！!？?、\s]+$', '', body_text).strip()
-    
-    changed = True
-    while changed and len(body_text) > 3:
-        changed = False
-        for word in incompletes:
-            if body_text.endswith(word):
-                body_text = body_text[:-len(word)].strip()
-                body_text = re.sub(r'[，,；;。！!？?、\s]+$', '', body_text).strip()
-                changed = True
-                break
-    return body_text
-
-def clean_entity_candidate(cand):
-    """
-    基于词性边界对提取出的候选实体进行死锁式前馈清洗，防止断词或动作词滞留括号内
-    """
-    if not cand:
-        return ""
-    cand = cand.strip()
-    cand = re.sub(r'^[：，,。；;！!？?、\s【】\[\]\(\)\（\）\-\—]+', '', cand)
-    cand = re.sub(r'[：，,。；;！!？?、\s【】\[\]\(\)\（\）\-\—]+$', '', cand)
-    
-    # 拦截动作、介词、量词或被截断的半个词组
-    bad_trailings = [
-        "上", "下", "前", "后", "内", "外", "中", "游", "产", "再", "起", "至", "自", "由", 
-        "向", "在", "于", "以", "并", "且", "但", "或", "和", "而", "超", "达", "创", "新", 
-        "破", "近", "约", "多", "余", "个", "只", "家", "条", "股", "度", "季", "年", "月", 
-        "日", "分", "秒", "的", "了", "着", "过", "已", "将", "被", "把", "让", "使", "及",
-        "取消", "恢复", "调整", "增加", "减少", "发布", "表示", "指出", "宣布", "进行", "上涨", "下跌", "飙升"
-    ]
-    
-    changed = True
-    while changed and len(cand) > 2:
-        changed = False
-        for char in bad_trailings:
-            if cand.endswith(char):
-                cand = cand[:-len(char)].strip()
-                changed = True
-                break
-                
-    # 剥离前置时间或数值修饰，如“第二季度”
-    time_prefixes = [
-        r'^\d+月\d+日', r'^\d+月', r'^今年', r'^去年', r'^前三季度', r'^上半年', 
-        r'^下半年', r'^第一季度', r'^第二季度', r'^第三季度', r'^第四季度', r'^一季度', 
-        r'^二季度', r'^三季度', r'^四季度', r'^首季', r'^当季', r'^日内', r'^今日', r'^昨日'
-    ]
-    for pattern in time_prefixes:
-        new_cand = re.sub(pattern, '', cand).strip()
-        if len(new_cand) >= 2:
-            cand = new_cand
-            
-    # 正则校验：只允许中文、英文字符和基础空格数字
-    if re.match(r'^[\u4e00-\u9fa5A-Za-z0-9\s]{2,10}$', cand):
-        return cand
-    return ""
-
-def ai_summarize(text):
-    """
-    轻量级 AI 定长摘要层：对全球新闻实施硬性字数控制（40-60字）与结构规范化排版。
-    格式：【核心实体】+ 精炼事件概述（以单一中文句号收尾，无省略号/无标点堆叠/无半句）
-    """
-    if not isinstance(text, str):
-        return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
-        
-    # 彻底清理嵌套或冗余的头尾括号
-    clean_text = re.sub(r'^[【\[\(（\s]+', '', text)
-    clean_text = re.sub(r'[】\]\)）\s]+$', '', clean_text)
-    clean_text = re.sub(r'<[^>]+>', '', clean_text)
-    clean_text = clean_text.strip()
-    
-    if not clean_text:
-        return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
-
-    # 1. 提取核心名词实体 (只放专有名词/发布主体，长度2-8字，不含动词)
-    def extract_entity(t):
-        # A. 优先匹配原生的方括号标签
-        m_bracket = re.match(r'^[【\[\(（]([^】\]\)）]+)[】\]\)）]', t)
-        if m_bracket:
-            candidate = m_bracket.group(1).strip()
-            candidate = clean_entity_candidate(candidate)
-            if candidate:
-                return candidate
-                    
-        # B. 剥离可能存在的头部括号，从正文主体中识别实体
-        text_body = re.sub(r'^[【\[\(（][^】\]\)）]+[】\]\)）]', '', t).strip()
-        
-        # B1. 主体 + 常见动作词边界
-        verbs = r'(?:发布|表示|指出|宣布|称|公布|报道|警告|印发|公告|举行|开展|建议|强调|警示|印发|下发|取消|恢复|调整|上涨|下跌)'
-        match_verb = re.search(r'^([^：，,。—\s【】（）]{2,12}?)(?:' + verbs + r')', text_body)
-        if match_verb:
-            candidate = clean_entity_candidate(match_verb.group(1))
-            if candidate:
-                return candidate
-                
-        # B2. 常见机构/主体后缀
-        org_suffixes = r'(?:厅|部|局|台|委|会|公司|集团|银行|证券|交易所|央行|政府|协会|联社|研究所|中心|企业|媒体|行业|产业|股市|市场|报告|预警|指数|数据|会议|纪要)'
-        match_suffix = re.search(r'^([^：，,。—\s【】（）]{2,12}?' + org_suffixes + r')', text_body)
-        if match_suffix:
-            candidate = clean_entity_candidate(match_suffix.group(1))
-            if candidate:
-                return candidate
-                
-        # B3. 常用宏观名词词库匹配
-        entities = [
-            "日本央行", "美联储", "欧央行", "英国央行", "国家统计局", "发改委", "商务部",
-            "财政部", "交通运输部", "水利厅", "气象局", "气象台", "川崎重工", "日本生命保险",
-            "联合国", "世界银行", "欧盟", "中国", "美国", "日本", "英国", "法国", "德国", 
-            "俄罗斯", "沙特", "欧佩克", "OPEC", "动力煤", "焦煤", "石油", "黄金"
-        ]
-        for ent in entities:
-            if ent in text_body[:20]:
-                return ent
-                
-        # B4. 兜底匹配最前部的干净名词
-        match_noun = re.match(r'^([^：，,。—\s【】（）]{2,6})', text_body)
-        if match_noun:
-            candidate = clean_entity_candidate(match_noun.group(1))
-            if candidate:
-                return candidate
-                
-        return "全球要闻"
-
-    entity = extract_entity(clean_text)
-    prefix = f"【{entity}】"
-    
-    # 2. 剥离正文开头的实体前缀与特殊符号，防符号粘连
-    text_body = re.sub(r'^[【\[\(（][^】\]\)）]+[】\]\)）]', '', clean_text).strip()
-    if text_body.startswith(entity):
-        text_body = text_body[len(entity):].lstrip("：，, ")
-        
-    # 特殊语法边界纠偏：如 entity="哈萨克斯坦能源部", body="长：" => entity="哈萨克斯坦", body="能源部长："
-    regions = ["哈萨克斯坦", "美国", "中国", "日本", "俄罗斯", "英国", "法国", "德国", "印度", "沙特", "乌克兰", "欧盟"]
-    for reg in regions:
-        if entity.startswith(reg) and entity != reg:
-            if text_body.startswith("长") or text_body.startswith("：") or text_body.startswith("表示"):
-                dept = entity[len(reg):]
-                entity = reg
-                prefix = f"【{entity}】"
-                text_body = dept + text_body
-                break
-                
-    # 优化标签衔接过渡，避免符号粘连冲突，将“长：/部：/台：”转换成“部长表示：”等
-    text_body = re.sub(r'^[：，,。；;！!？?、\s【】\[\]\(\)\（\）\-\—]+', '', text_body).strip()
-    text_body = re.sub(r'^长(?:：|:)', '部长表示：', text_body)
-    text_body = re.sub(r'^([部厅局长官人委台])(?:：|:)', r'\1表示：', text_body)
-    
-    # 3. 分句累加组装 (前馈防止截断半句)
-    clauses = [c.strip() for c in re.split(r'[，,；;。！!？?、]', text_body) if c.strip()]
-    
-    accumulated_body = ""
-    for c in clauses:
-        separator = "，" if accumulated_body else ""
-        test_body = accumulated_body + separator + c
-        if len(prefix) + len(test_body) + 1 <= 60:
-            accumulated_body = test_body
-        else:
-            break
-            
-    # 如果第一句就超过 60 字限制，必须对第一句截断并拼接 grammatically complete 结尾
-    if not accumulated_body and clauses:
-        first_clause = clauses[0]
-        max_b_len = 60 - len(prefix) - 1
-        suffix = "，市场对此高度关注"
-        safe_len = max_b_len - len(suffix)
-        if safe_len > 10:
-            accumulated_body = first_clause[:safe_len]
-            accumulated_body = clean_trailing_incomplete(accumulated_body) + suffix
-        else:
-            accumulated_body = first_clause[:max_b_len]
-            accumulated_body = clean_trailing_incomplete(accumulated_body)
-            
-    # 4. 清除累加后末尾可能存在的不完整连接词
-    accumulated_body = clean_trailing_incomplete(accumulated_body)
-    
-    # 5. 二次对齐 [40, 60] 字的物理空间限制，太短时补充完整的宏观提示句，禁止堆叠句号
-    summary = f"{prefix}{accumulated_body}。"
-    summary = re.sub(r'。+$', '。', summary)
-    
-    while len(summary) < 40:
-        filler = "本观察哨对此将持续保持高频监测与深度跟踪分析"
-        needed = 40 - len(summary)
-        accumulated_body += filler[:needed]
-        summary = f"{prefix}{accumulated_body}。"
-        summary = re.sub(r'。+$', '。', summary)
-        
-    # 终极越界防护，强制以句号收尾
-    if len(summary) > 60:
-        summary = summary[:59] + "。"
-        
-    return summary
 
 # 1. 设置网页标题和图标，使用大屏宽屏布局以适配 China Macro Observatory 看板风格
 st.set_page_config(
@@ -495,7 +279,11 @@ st.markdown("""
         color: #0072ff !important;
         text-decoration: underline !important;
     }
-    
+    .news-text-plain {
+        color: #cbd5e1 !important;
+        cursor: default !important;
+    }
+
     /* 选项卡 (Tabs) 美化 */
     div[data-baseweb="tab-list"] {
         gap: 6px;
@@ -1090,21 +878,21 @@ with col_right:
                 url = row.get("url", "")
                 time_str = row.get("publish_time", "")
                 
-                # 对齐 V1.1.1.0 AI 定长约束：若未被 daemon 转换则在此处实时转化
+                # V1.1.1.5: 终极前馈清洗——未被 daemon 转换的记录在此处强制标准化
                 c_str = str(content)
                 if c_str.startswith("【") and "】" in c_str[:15] and 40 <= len(c_str) <= 60:
                     summarized_content = c_str
                 else:
                     summarized_content = ai_summarize(c_str)
-                    
+
                 clean_content = re.sub('<[^<]+?>', '', summarized_content)
-                
-                # V1.1.1.3: 引入 is_valid_url 进行死链过滤
+
+                # V1.1.1.5: 前馈死链审查——非法 URL 强制 DOM 降级解包为纯文本
                 if is_valid_url(url):
                     title_html = f'<a href="{url}" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 500;">{clean_content}</a>'
                 else:
-                    title_html = clean_content
-                    
+                    title_html = f'<span class="news-text-plain">{clean_content}</span>'
+
                 card_html = f'<div class="news-card"><div class="news-time">⏱️ {time_str}</div><div class="news-content">{title_html}</div></div>'
                 news_html_cards.append(card_html)
         else:
