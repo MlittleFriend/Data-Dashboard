@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 import re
 
 # 版本标识与前馈控制参数 V1.1.1.0
-VERSION = "V1.1.1.0"
+VERSION = "V1.1.1.1"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -24,13 +24,17 @@ def ai_summarize(text):
     轻量级 AI 定长摘要层：对全球新闻实施硬性字数控制（40-60字）与结构规范化排版。
     格式：【核心实体/主题】+ 精炼事件概述
     """
-    clean_text = re.sub(r'<[^>]+>', '', text) if isinstance(text, str) else ""
+    # 1. 彻底清理双括号嵌套与前导空格，防溢出控制
+    clean_text = re.sub(r'^[【\[\(（\s]+', '', text) if isinstance(text, str) else ""
+    clean_text = re.sub(r'[】\]\)）\s]+$', '', clean_text)
+    clean_text = re.sub(r'<[^>]+>', '', clean_text)
     clean_text = clean_text.strip()
+    
     if not clean_text:
         return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
         
+    # 2. 精准寻找核心实体，避免谓语动词或断句逻辑塞入括号
     entity = "全球要闻"
-    # 主流高频词库，用于自动提取事件核心实体
     entities = [
         "日本央行", "美联储", "欧央行", "英国央行", "央行", "财政部", "日本生命保险", "川崎重工",
         "国家统计局", "发改委", "商务部", "A股", "美股", "港股", "英伟达", "特斯拉",
@@ -41,12 +45,27 @@ def ai_summarize(text):
             entity = ent
             break
     else:
-        # Heuristic 提取冒号、破折号或前数个字符作为实体主题
-        match = re.match(r'^([^：，,。—]{2,8})', clean_text)
-        if match:
-            entity = match.group(1).strip()
-            
-    # 清理正文中的重复实体词
+        # 正则提取新闻发布主体/国家地区单名词，以常见动词为边界防止动作溢出到括号内
+        verbs = r'(?:发布|表示|指出|宣布|称|公布|报道|警告|印发|公告|举行|开展|建议|强调|警示|印发|下发)'
+        match_verb = re.search(r'^([^：，,。—\s【】]{2,12}?)(?:' + verbs + r')', clean_text)
+        if match_verb:
+            entity = match_verb.group(1).strip()
+        else:
+            # 常见机构/主体后缀匹配
+            org_suffixes = r'(?:厅|部|局|台|委|会|公司|集团|银行|证券|交易所|央行|政府|协会|联社|研究所|中心)'
+            match_suffix = re.search(r'^([^：，,。—\s【】]{2,12}?' + org_suffixes + r')', clean_text)
+            if match_suffix:
+                entity = match_suffix.group(1).strip()
+            else:
+                # 兜底匹配最长6个非动词词首名词
+                match_noun = re.match(r'^([^：，,。—\s【】]{2,6})', clean_text)
+                if match_noun:
+                    candidate = match_noun.group(1).strip()
+                    verbs_list = ["发布", "表示", "指出", "宣布", "称", "公布", "报道", "警告", "印发", "公告", "举行", "开展", "达", "超", "涨", "跌", "创", "降", "增"]
+                    if not any(v in candidate for v in verbs_list):
+                        entity = candidate
+
+    # 3. 清理正文中的重复实体词，获取精炼事件概述
     body = clean_text
     if body.startswith(entity):
         body = body[len(entity):].lstrip("：，, ")
@@ -55,7 +74,7 @@ def ai_summarize(text):
         
     body = re.sub(r'[。，,；;！!]+$', '', body).strip()
     
-    # 限制总长度在 40 - 60 字符之间
+    # 4. 前馈字数控制：先完整输出规范括号标签，字数截断作用在概述末尾
     prefix = f"【{entity}】"
     target_min = 40
     target_max = 60
@@ -72,7 +91,7 @@ def ai_summarize(text):
         
     summary = f"{prefix}{body}"
     
-    # 二次检查极值，确保绝对安全
+    # 二次对齐极值约束
     if len(summary) < target_min:
         summary = summary + "。" * (target_min - len(summary))
     elif len(summary) > target_max:
