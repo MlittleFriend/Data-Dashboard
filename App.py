@@ -15,7 +15,7 @@ from news_sanitizer import ai_summarize, is_valid_url
 from upload_data import fetch_finance_news
 
 # 版本标识与前馈控制参数 V1.1.2.2
-VERSION = "V1.1.2.2"
+VERSION = "V1.1.2.3"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -860,7 +860,11 @@ with col_left:
             )
             st.plotly_chart(fig_cpi, use_container_width=True, config={'displayModeBar': False})
         else:
-            st.write("暂无物价同比折线图数据")
+            st.markdown("""
+            <div style="background: rgba(255, 59, 48, 0.15); border: 2px solid #ff3b30; border-radius: 8px; padding: 20px; text-align: center; color: #ff6b6b; font-weight: 700; margin: 15px 0;">
+                ⚠️ 26630 异常断流：未匹配到有效的物价同比时间序列，请检查上游格式！
+            </div>
+            """, unsafe_allow_html=True)
             
         st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
         
@@ -901,7 +905,11 @@ with col_left:
             fig_bar.update_yaxes(showgrid=True, gridcolor="rgba(255, 255, 255, 0.03)", zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
             st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
         else:
-            st.write("暂无分项结构化数据")
+            st.markdown("""
+            <div style="background: rgba(255, 59, 48, 0.15); border: 2px solid #ff3b30; border-radius: 8px; padding: 20px; text-align: center; color: #ff6b6b; font-weight: 700; margin: 15px 0;">
+                ⚠️ 26630 异常断流：未匹配到有效的物价核心分项数据，请检查上游格式！
+            </div>
+            """, unsafe_allow_html=True)
             
     with tab2:
         # C. 动力煤与焦煤现货价格对比
@@ -916,7 +924,11 @@ with col_left:
             )
             st.plotly_chart(fig_coal, use_container_width=True, config={'displayModeBar': False})
         else:
-            st.write("暂无港口煤炭价格图表数据")
+            st.markdown("""
+            <div style="background: rgba(255, 59, 48, 0.15); border: 2px solid #ff3b30; border-radius: 8px; padding: 20px; text-align: center; color: #ff6b6b; font-weight: 700; margin: 15px 0;">
+                ⚠️ 26630 异常断流：未匹配到有效的煤炭双焦监测时序，请检查上游格式！
+            </div>
+            """, unsafe_allow_html=True)
             
     st.markdown('</div>', unsafe_allow_html=True)
 

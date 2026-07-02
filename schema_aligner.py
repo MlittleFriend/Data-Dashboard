@@ -46,6 +46,52 @@ def calculate_sha256(filepath):
         return ""
 
 
+def save_schema_snapshot(excel_file, sheet_names):
+    """
+    在数据处理的最开始，生成表格结构快照并持久化保存为 schema_snapshot.json。
+    """
+    snapshot = {}
+    try:
+        for sheet in sheet_names:
+            df = pd.read_excel(excel_file, sheet_name=sheet)
+            cols = [str(c) for c in df.columns]
+            dtypes = {str(k): str(v) for k, v in df.dtypes.to_dict().items()}
+            # 序列化前3行样例数据，处理其中的 Timestamp/NaN 以便 JSON 输出
+            sample_rows = []
+            for _, row in df.head(3).iterrows():
+                row_dict = {}
+                for k, v in row.to_dict().items():
+                    if pd.isnull(v):
+                        row_dict[str(k)] = None
+                    elif isinstance(v, (datetime, pd.Timestamp)):
+                        row_dict[str(k)] = v.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        row_dict[str(k)] = v
+                sample_rows.append(row_dict)
+                
+            snapshot[sheet] = {
+                "columns": cols,
+                "dtypes": dtypes,
+                "sample_rows": sample_rows
+            }
+            
+        with open("schema_snapshot.json", "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
+        print("[Pipeline] 表格特征快照 schema_snapshot.json 生成完毕。")
+    except Exception as e:
+        print(f"[Pipeline] 生成表格快照失败: {e}")
+
+
+def string_similarity(s1, s2):
+    s1, s2 = str(s1).lower().strip(), str(s2).lower().strip()
+    s1_chars = set(s1)
+    s2_chars = set(s2)
+    if not s1_chars or not s2_chars:
+        return 0.0
+    common = s1_chars & s2_chars
+    return len(common) / max(len(s1), len(s2))
+
+
 def is_numeric_column(df, col, min_numeric_ratio=0.5):
     """
     检查列中非空单元格的数值化比例，排除主要是文本（元数据）或空列
@@ -112,6 +158,7 @@ def find_closest_date_column(df, value_cols):
 def map_columns_by_keywords(df, sheet_type):
     """
     在数值列中，根据关键字规则对齐标准列名。
+    若无正则匹配，则降级使用模糊相似度匹配。
     """
     keyword_rules = {}
     if sheet_type == "cpi_trend":
@@ -140,8 +187,25 @@ def map_columns_by_keywords(df, sheet_type):
             "其他": [r"其他", r"其它", r"其他用品", r"其他用品及服务"]
         }
 
+    # 尝试加载 schema_lock.json
+    locked_mappings = {}
+    if os.path.exists("schema_lock.json"):
+        try:
+            with open("schema_lock.json", "r", encoding="utf-8") as f:
+                locked_data = json.load(f)
+                locked_mappings = locked_data.get(sheet_type, {})
+        except Exception as e:
+            print(f"[Schema Lock] 读取 schema_lock.json 失败: {e}")
+
     mappings = {}
     for std_field, patterns in keyword_rules.items():
+        # A. 优先从锁定的 schema_lock 中直接映射，如果该列依然存在且是数字列
+        locked_col = locked_mappings.get(std_field)
+        if locked_col and locked_col in df.columns and is_numeric_column(df, locked_col):
+            mappings[std_field] = locked_col
+            continue
+
+        # B. 其次尝试正则表达式正则搜索匹配
         found = False
         for col in df.columns:
             if not is_numeric_column(df, col):
@@ -160,6 +224,26 @@ def map_columns_by_keywords(df, sheet_type):
                     break
             if found:
                 break
+                
+        # C. 再次降级使用模糊相似度最大化匹配 (Jaro-Winkler/Levenshtein相似字符比例)
+        if not found:
+            best_col = None
+            max_sim = 0.0
+            for col in df.columns:
+                if not is_numeric_column(df, col):
+                    continue
+                for pat in patterns:
+                    clean_pat = pat.replace(r".*", "").replace(r"(?!.*核心)", "")
+                    for cell_val in [str(col)] + list(df[col].head(5)):
+                        if pd.isnull(cell_val):
+                            continue
+                        sim = string_similarity(str(cell_val), clean_pat)
+                        if sim > max_sim:
+                            max_sim = sim
+                            best_col = col
+            if max_sim >= 0.3 and best_col:
+                mappings[std_field] = best_col
+                print(f"[Fuzzy Match] 字段 {std_field} 通过模糊相似度对齐到 {best_col} (相似度: {max_sim:.2f})")
                 
     return mappings
 
@@ -365,6 +449,9 @@ def run_alignment_pipeline(excel_file, force=False):
         sheet_names = wb.sheetnames
         wb.close()
         
+        # 0. 瞬时生成结构快照
+        save_schema_snapshot(excel_file, sheet_names)
+        
         # 1. 动态对齐工作表
         sheet_cpi = find_sheet_by_keyword(sheet_names, ["图1，5", "图1", "1，5", "cpi同比"]) or "图1，5"
         sheet_cat = find_sheet_by_keyword(sheet_names, ["图2", "cpi分项", "八大分项"]) or "图2"
@@ -417,6 +504,27 @@ def run_alignment_pipeline(excel_file, force=False):
             }
         }
         
+        # 保存最新对齐映射到 schema_lock.json，实现静态死锁
+        new_locks = {}
+        if os.path.exists("schema_lock.json"):
+            try:
+                with open("schema_lock.json", "r", encoding="utf-8") as f:
+                    new_locks = json.load(f)
+            except Exception:
+                new_locks = {}
+                
+        new_locks["dashboard_cpi_compare"] = {str(k): str(v) for k, v in map_cpi.items()}
+        new_locks["cpi_categories"] = {str(k): str(v) for k, v in map_cat.items()}
+        new_locks["dashboard_coal_prices"] = {str(k): str(v) for k, v in map_coal.items()}
+        new_locks["cpi_trend"] = {str(k): str(v) for k, v in map_trend.items()}
+        
+        try:
+            with open("schema_lock.json", "w", encoding="utf-8") as f:
+                json.dump(new_locks, f, ensure_ascii=False, indent=2)
+            print("[Pipeline] schema_lock.json 映射关系已刷新锁定。")
+        except Exception as e:
+            print(f"[Pipeline] 写入 schema_lock.json 失败: {e}")
+
         # 保存状态
         cursor.execute("DELETE FROM file_listener_status")
         cursor.execute(
