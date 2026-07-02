@@ -14,8 +14,8 @@ import schema_aligner
 from news_sanitizer import is_valid_url, sanitize_news_item
 from upload_data import fetch_finance_news
 
-# 版本标识与前馈控制参数 V1.1.2.7
-VERSION = "V1.1.2.7"
+# 版本标识与前馈控制参数 V1.1.2.8
+VERSION = "V1.1.2.8"
 
 def check_and_upgrade_db():
     try:
@@ -953,21 +953,37 @@ with col_right:
         news_html_cards = []
         if not df_news_fresh.empty:
             for _, row in df_news_fresh.iterrows():
-                title = row.get("title", "")
-                content = row.get("content", "")
+                title = row.get("title")
+                content = row.get("content")
                 url = row.get("url", "")
                 time_str = row.get("publish_time", "")
                 
+                # 强力防御 nan 与空值
+                if pd.isnull(title) or not title or str(title).strip().lower() == "nan":
+                    title = ""
+                if pd.isnull(content) or not content or str(content).strip().lower() == "nan":
+                    content = ""
+                    
                 # 兼容历史没有独立 title 列的数据，自适应分裂
                 if not title:
                     title, content = sanitize_news_item(str(content))
                     
-                # 重新拼接前端展示文本，格式锁死为：{原标题}：{核心简讯}
-                display_text = f"{title}：{content}"
+                # 再次校验分流后的 title 与 content
+                if not title or str(title).strip().lower() == "nan":
+                    title = "全球要闻"
+                if not content or str(content).strip().lower() == "nan":
+                    content = ""
+                    
+                # 重新拼接前端展示文本
+                if not content:
+                    display_text = title
+                else:
+                    display_text = f"{title}：{content}"
                 
-                # 保证尾部以单个句号完结
+                # 保证尾部以单个句号完结，彻底粉碎方括号与冒号尾缀
                 display_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', display_text) + "。"
                 display_text = re.sub(r'。+$', '。', display_text)
+                display_text = display_text.replace("【", "").replace("】", "").replace("[", "").replace("]", "")
 
                 clean_content = re.sub('<[^<]+?>', '', display_text)
 

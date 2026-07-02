@@ -178,8 +178,8 @@ def sanitize_news_item(rich_text):
     其中合并后的总字数（len(title) + 1 + len(content)）在 40 - 60 字之间。
     尾部强制以单个标准简体中文句号完结，并粉碎所有旧版方括号格式。
     """
-    if not isinstance(rich_text, str):
-        return "全球要闻", "当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
+    if not isinstance(rich_text, str) or not rich_text or str(rich_text).strip().lower() == "nan":
+        return "全球要闻。", ""
 
     rich_text = rich_text.strip()
     
@@ -199,7 +199,7 @@ def sanitize_news_item(rich_text):
         title = rich_text[:split_idx].strip()
         body = rich_text[split_idx:].strip()
 
-    # 剥离提取后标题与正文内部所有的方括号噪音，彻底不使用 【】 字符
+    # 剥离提取后标题与正文内部所有的方括号/圆括号噪音，彻底不使用 【】 字符
     title = title.replace("【", "").replace("】", "").replace("[", "").replace("]", "").replace("（", "").replace("）", "").replace("(", "").replace(")", "")
     body = body.replace("【", "").replace("】", "").replace("[", "").replace("]", "")
 
@@ -207,8 +207,22 @@ def sanitize_news_item(rich_text):
     title = re.sub(r'[：，,。；;！!？?、\s]+$', '', title)
     body = re.sub(r'^[：，,。；;！!？?、\s]+', '', body)
 
-    if not title:
-        title = "全球要闻"
+    # 1. 拦截 nan 和空标题
+    if not title or str(title).strip().lower() == "nan":
+        # Fallback 机制：若正文开头包含 【...】 结构，强行剥离作为真实标题
+        m_fallback = re.search(r'[【\[]([^】\]]+)[】\]]', body)
+        if m_fallback:
+            title = m_fallback.group(1).strip()
+            # 从正文中剥离该方括号及其内容
+            body = body.replace(f"【{title}】", "").replace(f"[{title}]", "").strip()
+            title = title.replace("【", "").replace("】", "").replace("[", "").replace("]", "")
+            title = re.sub(r'^[：，,。；;！!？?、\s]+', '', title)
+            title = re.sub(r'[：，,。；;！!？?、\s]+$', '', title)
+        else:
+            title = "全球要闻"
+
+    if not body or str(body).strip().lower() == "nan":
+        body = ""
 
     # ==========================================
     # 标题字数前馈拦截分流器
