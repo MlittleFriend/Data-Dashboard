@@ -14,8 +14,8 @@ import schema_aligner
 from news_sanitizer import ai_summarize, is_valid_url
 from upload_data import fetch_finance_news
 
-# 版本标识与前馈控制参数 V1.1.2.2
-VERSION = "V1.1.2.3"
+# 版本标识与前馈控制参数 V1.1.2.5
+VERSION = "V1.1.2.5"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -761,22 +761,7 @@ if status_info:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
-        with st.expander("🛠️ 查看 26630.xlsx 架构对齐详情 (Schema Auto-mapping Details)", expanded=False):
-            map_data = []
-            align_info = status_info["alignment_info"]
-            if align_info:
-                sheets = align_info.get("mapped_sheets", {})
-                cols = align_info.get("columns_mapped", {})
-                for key, sheet in sheets.items():
-                    sheet_cols = cols.get(key, {})
-                    col_mapping_str = ", ".join([f"{k} ➔ {v}" for k, v in sheet_cols.items() if k != "date"])
-                    map_data.append({
-                        "数据模块 (Module)": key,
-                        "对齐工作表 (Sheet)": sheet,
-                        "字段对齐详情 (Column Mappings)": col_mapping_str
-                    })
-                st.dataframe(pd.DataFrame(map_data), use_container_width=True)
+
 
 
 # 7. 顶部大盘指标卡行 (Top Row: KPI Metrics Dashboards)
@@ -1013,19 +998,3 @@ with col_right:
         
     st.markdown('</div>', unsafe_allow_html=True)
 
-
-# 9. 底部折叠展示完整投研原始数据集 (Raw Data Table Drawer)
-st.markdown('<div style="margin-bottom: 12px;"></div>', unsafe_allow_html=True)
-st.subheader("📋 原始投研数据集 (Raw Metrics)")
-with st.expander("展开 / 收起 原始明细数据表格", expanded=False):
-    raw_tab1, raw_tab2, raw_tab3, raw_tab4 = st.tabs([
-        "📈 CPI同比走势", "📊 核心分项增速", "📈 CPI与核心CPI对比", "📊 双焦煤炭价格"
-    ])
-    with raw_tab1:
-        st.dataframe(df_trend, use_container_width=True)
-    with raw_tab2:
-        st.dataframe(df_cat, use_container_width=True)
-    with raw_tab3:
-        st.dataframe(df_cpi_compare, use_container_width=True)
-    with raw_tab4:
-        st.dataframe(df_coal_prices, use_container_width=True)
