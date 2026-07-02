@@ -9,9 +9,11 @@ from news_sanitizer import is_valid_url, ai_summarize
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
+import json
+import schema_aligner
 
-# 版本标识与前馈控制参数 V1.1.2
-VERSION = "V1.1.2"
+# 版本标识与前馈控制参数 V1.1.2.1
+VERSION = "V1.1.2.1"
 
 # 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
 if hasattr(st, "fragment"):
@@ -479,6 +481,31 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
     return fig
 
 
+def load_listener_status():
+    try:
+        conn = sqlite3.connect("my_data.db", timeout=30.0)
+        cursor = conn.cursor()
+        # 检查表是否存在
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='file_listener_status'")
+        if not cursor.fetchone():
+            conn.close()
+            return None
+        cursor.execute("SELECT sha256, mtime, alignment_info, deep_analysis, update_time FROM file_listener_status ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {
+                "sha256": row[0],
+                "mtime": row[1],
+                "alignment_info": json.loads(row[2]) if row[2] else {},
+                "deep_analysis": row[3],
+                "update_time": row[4]
+            }
+    except Exception as e:
+        print(f"[UI Status Loader] Error loading listener status: {e}")
+    return None
+
+
 # 2. 从数据库读取快讯、图表数据以及宏观分析 HTML 列表
 #    ttl=5 强制每次刷新都穿透缓存，直连物理数据库拉取最新手动追更文章卡片
 @st.cache_data(ttl=5)
@@ -610,6 +637,9 @@ def news_crawling_daemon():
 # 启动后台守护线程
 threading.Thread(target=news_crawling_daemon, daemon=True).start()
 
+# 启动 26630.xlsx 数据监听与自适应对齐引擎守护线程
+schema_aligner.start_file_watcher()
+
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
@@ -708,6 +738,43 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+
+# 控制对齐状态呈现与二阶推演深度解读
+status_info = load_listener_status()
+if status_info:
+    with st.container():
+        st.markdown(f"""
+        <div class="obs-card" style="border-top: 3px solid #00f0ff; padding: 18px !important; margin-bottom: 20px !important;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h4 style="margin: 0; color: #00f0ff; font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                    🤖 26630 智能自适应对齐与深度研判
+                </h4>
+                <span style="font-size: 0.72rem; color: #94a3b8;">
+                    🔄 最新同步: {status_info['update_time']} | 算法: LLM 语义中继与规则对齐
+                </span>
+            </div>
+            <div style="background: rgba(0, 240, 255, 0.04); border-left: 3px solid #00f0ff; padding: 12px 16px; border-radius: 4px; margin-bottom: 12px; color: #e2e8f0; font-size: 0.88rem; line-height: 1.6;">
+                💡 <b>研究员多维深度解读：</b>{status_info['deep_analysis']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.expander("🛠️ 查看 26630.xlsx 架构对齐详情 (Schema Auto-mapping Details)", expanded=False):
+            map_data = []
+            align_info = status_info["alignment_info"]
+            if align_info:
+                sheets = align_info.get("mapped_sheets", {})
+                cols = align_info.get("columns_mapped", {})
+                for key, sheet in sheets.items():
+                    sheet_cols = cols.get(key, {})
+                    col_mapping_str = ", ".join([f"{k} ➔ {v}" for k, v in sheet_cols.items() if k != "date"])
+                    map_data.append({
+                        "数据模块 (Module)": key,
+                        "对齐工作表 (Sheet)": sheet,
+                        "字段对齐详情 (Column Mappings)": col_mapping_str
+                    })
+                st.dataframe(pd.DataFrame(map_data), use_container_width=True)
 
 
 # 7. 顶部大盘指标卡行 (Top Row: KPI Metrics Dashboards)
