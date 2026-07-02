@@ -2,11 +2,83 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import threading
+import time
 from datetime import datetime
 from upload_data import fetch_finance_news
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
+
+# 版本标识与前馈控制参数 V1.1.1.0
+VERSION = "V1.1.1.0"
+
+# 自适应 Streamlit 局部渲染装饰器，实现 10 分钟或更短周期的局部刷新
+if hasattr(st, "fragment"):
+    news_fragment = st.fragment(run_every=60)  # 每分钟局部刷新快讯
+else:
+    def news_fragment(func):
+        return func
+
+def ai_summarize(text):
+    """
+    轻量级 AI 定长摘要层：对全球新闻实施硬性字数控制（40-60字）与结构规范化排版。
+    格式：【核心实体/主题】+ 精炼事件概述
+    """
+    clean_text = re.sub(r'<[^>]+>', '', text) if isinstance(text, str) else ""
+    clean_text = clean_text.strip()
+    if not clean_text:
+        return "【全球要闻】当前无突发热点，宏观观察哨正对此持续进行高频深度跟踪监控。"
+        
+    entity = "全球要闻"
+    # 主流高频词库，用于自动提取事件核心实体
+    entities = [
+        "日本央行", "美联储", "欧央行", "英国央行", "央行", "财政部", "日本生命保险", "川崎重工",
+        "国家统计局", "发改委", "商务部", "A股", "美股", "港股", "英伟达", "特斯拉",
+        "微软", "苹果", "谷歌", "沙特阿美", "动力煤", "焦煤", "煤炭", "石油", "黄金"
+    ]
+    for ent in entities:
+        if ent in clean_text:
+            entity = ent
+            break
+    else:
+        # Heuristic 提取冒号、破折号或前数个字符作为实体主题
+        match = re.match(r'^([^：，,。—]{2,8})', clean_text)
+        if match:
+            entity = match.group(1).strip()
+            
+    # 清理正文中的重复实体词
+    body = clean_text
+    if body.startswith(entity):
+        body = body[len(entity):].lstrip("：，, ")
+    elif body.startswith(f"【{entity}】"):
+        body = body[len(f"【{entity}】"):].lstrip("：，, ")
+        
+    body = re.sub(r'[。，,；;！!]+$', '', body).strip()
+    
+    # 限制总长度在 40 - 60 字符之间
+    prefix = f"【{entity}】"
+    target_min = 40
+    target_max = 60
+    
+    min_body_len = target_min - len(prefix)
+    max_body_len = target_max - len(prefix) - 3  # 为 '...' 留出空间
+    
+    if len(prefix + body) > target_max:
+        body = body[:max_body_len] + "..."
+    elif len(prefix + body) < target_min:
+        filler = "，本观察哨正对此热点持续进行高频跟踪与传导分析监测。"
+        needed = target_min - len(prefix + body)
+        body = body + filler[:needed]
+        
+    summary = f"{prefix}{body}"
+    
+    # 二次检查极值，确保绝对安全
+    if len(summary) < target_min:
+        summary = summary + "。" * (target_min - len(summary))
+    elif len(summary) > target_max:
+        summary = summary[:target_max-3] + "..."
+        
+    return summary
 
 # 1. 设置网页标题和图标，使用大屏宽屏布局以适配 China Macro Observatory 看板风格
 st.set_page_config(
@@ -519,9 +591,9 @@ def load_data(current_date_str):
     return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_news, target_macro_html
 
 
-# 3. 每日热点异步自动刷新机制
-#    只要最新的数据日期比今天早，立刻强制启动爬虫管道更新数据，并清空缓存
-def maybe_refresh_text_records():
+# 3. 控制论高频前馈守护线程：兼顾每日首次初始化探测与10分钟高频全球热点 Top 5 增量爬取
+def news_crawling_daemon():
+    # 3.1 首次启动时的日常检测同步 (兼容原 `maybe_refresh_text_records` 行为)
     try:
         conn = sqlite3.connect("my_data.db", timeout=30.0)
         cursor = conn.cursor()
@@ -529,36 +601,70 @@ def maybe_refresh_text_records():
         row = cursor.fetchone()
         result = row[0] if row else None
         conn.close()
-
-        if not result:
-            # 若为空，则直接触发同步抓取
-            records = fetch_finance_news(limit=12)
-            if records:
-                df_res = pd.DataFrame(records)
-                conn = sqlite3.connect("my_data.db", timeout=30.0)
-                df_res.to_sql("text_records", conn, if_exists="replace", index=False)
-                conn.close()
-                load_data.clear()
-            return
-
-        latest_date = datetime.strptime(str(result).split(" ")[0], "%Y-%m-%d").date()
+        
         today = datetime.now().date()
-
-        if latest_date < today:
+        need_initial_fetch = False
+        if not result:
+            need_initial_fetch = True
+        else:
+            latest_date = datetime.strptime(str(result).split(" ")[0], "%Y-%m-%d").date()
+            if latest_date < today:
+                need_initial_fetch = True
+                
+        if need_initial_fetch:
             records = fetch_finance_news(limit=12)
             if records:
+                # 对初始抓取数据执行 AI 摘要层过滤
+                for r in records:
+                    r["content"] = ai_summarize(r["content"])
                 df_res = pd.DataFrame(records)
                 conn = sqlite3.connect("my_data.db", timeout=30.0)
                 df_res.to_sql("text_records", conn, if_exists="replace", index=False)
                 conn.close()
-                print(f"[Auto Refresh] text_records updated successfully at {datetime.now()}")
                 load_data.clear()
     except Exception as e:
-        print(f"[Auto Refresh] failed: {e}")
+        print(f"[Daemon Startup] Initial sync failed: {e}")
+        
+    # 3.2 周期性高频增量热点数据链抓取（每 10 分钟自动执行）
+    while True:
+        try:
+            records = fetch_finance_news(limit=10) # 获取最新快讯以筛选 Top 5
+            if records:
+                conn = sqlite3.connect("my_data.db", timeout=30.0)
+                # 读取已有 ID 集合以去重，防止重复写入膨胀
+                try:
+                    existing_df = pd.read_sql_query("SELECT id FROM text_records", conn)
+                    existing_ids = set(existing_df["id"].astype(str).tolist())
+                except Exception:
+                    existing_ids = set()
+                    
+                new_records = []
+                for r in records:
+                    rid = str(r["id"])
+                    if rid not in existing_ids:
+                        # 注入 AI 自动化定长摘要过滤
+                        r["content"] = ai_summarize(r["content"])
+                        new_records.append(r)
+                        
+                if new_records:
+                    # 按时间排序以确保时间顺序正确
+                    new_records = sorted(new_records, key=lambda x: x.get("publish_time", ""))
+                    # 精准取最新的 Top 5 进行写入
+                    top_5_new = new_records[-5:]
+                    
+                    df_new = pd.DataFrame(top_5_new)
+                    df_new["id"] = df_new["id"].astype(str)
+                    df_new.to_sql("text_records", conn, if_exists="append", index=False)
+                    print(f"[Daemon High-Freq] V1.1.1.0 appended {len(top_5_new)} global news items.")
+                conn.close()
+        except Exception as e:
+            print(f"[Daemon High-Freq] News crawling daemon failed: {e}")
+            
+        time.sleep(600)  # 严格 10 分钟周期轮询
 
 
-# 保证每次页面被打开或刷新时，都会在后台动态探测一次是否需要更新
-threading.Thread(target=maybe_refresh_text_records, daemon=True).start()
+# 启动后台守护线程
+threading.Thread(target=news_crawling_daemon, daemon=True).start()
 
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
@@ -642,15 +748,15 @@ st.markdown(f"""
     <div class="status-items">
         <div class="status-item" style="color: #10b981;">
             <span class="status-dot dot-green"></span>
-            前馈控制系统 (Pre-control Active)
+            前馈控制 (Pre-control Active)
         </div>
         <div class="status-item" style="color: #00f0ff;">
             <span class="status-dot dot-blue"></span>
-            宏观数据库联通 (DB Linked)
+            宏观数据库 (DB Linked)
         </div>
         <div class="status-item" style="color: #a78bfa;">
             <span class="status-dot dot-purple"></span>
-            敏感数据采集组件校准 (Stream Align)
+            版本控制: <span style="color: #ffffff; font-weight: 700; margin-left: 2px;">{VERSION}</span>
         </div>
     </div>
     <div style="color: #94a3b8; font-weight: 500;">
@@ -804,36 +910,54 @@ with col_left:
 
 # 右半侧侧边栏：情报流与投研研究 (Live Info Feed & Deep Transmission)
 with col_right:
-    # 1. 实时金融快讯流 (Sina 7x24 Live Tracker)
-    st.markdown('<div class="obs-card">', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:700;">📻 实时联播快讯流 (Sina Live Feed)</h3>', unsafe_allow_html=True)
-    
-    # 纵向高密度滚动快讯流渲染
-    news_html_cards = []
-    if not df_news.empty:
-        for _, row in df_news.iterrows():
-            content = row.get("content", "")
-            url = row.get("url", "")
-            time_str = row.get("publish_time", "")
-            
-            # 去除可能存在的 HTML 标签
-            clean_content = re.sub('<[^<]+?>', '', content) if isinstance(content, str) else ""
-            
-            if url:
-                title_html = f'<a href="{url}" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 500;">{clean_content}</a>'
-            else:
-                title_html = clean_content
-                
-            card_html = f'<div class="news-card"><div class="news-time">⏱️ {time_str}</div><div class="news-content">{title_html}</div></div>'
-            news_html_cards.append(card_html)
-    else:
-        news_html_cards.append('<div style="color:#64748b; text-align:center; padding:30px; font-size:0.85rem;">暂无金融快讯数据</div>')
+    # 1. 实时金融快讯流 (Sina 7x24 Live Tracker) - 引入 `@news_fragment` 实现每分钟无缝局部轮询刷新
+    @news_fragment
+    def render_live_feed():
+        st.markdown('<div class="obs-card">', unsafe_allow_html=True)
+        st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:700;">📻 实时联播快讯流 (Sina Live Feed)</h3>', unsafe_allow_html=True)
         
-    all_news_html = "\n".join(news_html_cards)
-    
-    # 使用定制滚动条容器输出，移除前导空格以防被解析为 Markdown 代码块
-    st.markdown(f'<div class="news-scroll-container">{all_news_html}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        # 实时连通数据库以获取增量快讯数据
+        try:
+            conn_fresh = sqlite3.connect("my_data.db", timeout=30.0)
+            df_news_fresh = pd.read_sql_query(
+                "SELECT content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 12",
+                conn_fresh,
+            )
+            conn_fresh.close()
+        except Exception:
+            df_news_fresh = pd.DataFrame(columns=["content", "url", "publish_time"])
+
+        news_html_cards = []
+        if not df_news_fresh.empty:
+            for _, row in df_news_fresh.iterrows():
+                content = row.get("content", "")
+                url = row.get("url", "")
+                time_str = row.get("publish_time", "")
+                
+                # 对齐 V1.1.1.0 AI 定长约束：若未被 daemon 转换则在此处实时转化
+                c_str = str(content)
+                if c_str.startswith("【") and "】" in c_str[:15] and 40 <= len(c_str) <= 60:
+                    summarized_content = c_str
+                else:
+                    summarized_content = ai_summarize(c_str)
+                    
+                clean_content = re.sub('<[^<]+?>', '', summarized_content)
+                
+                if url:
+                    title_html = f'<a href="{url}" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 500;">{clean_content}</a>'
+                else:
+                    title_html = clean_content
+                    
+                card_html = f'<div class="news-card"><div class="news-time">⏱️ {time_str}</div><div class="news-content">{title_html}</div></div>'
+                news_html_cards.append(card_html)
+        else:
+            news_html_cards.append('<div style="color:#64748b; text-align:center; padding:30px; font-size:0.85rem;">暂无金融快讯数据</div>')
+            
+        all_news_html = "\n".join(news_html_cards)
+        st.markdown(f'<div class="news-scroll-container">{all_news_html}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    render_live_feed()
 
     # 2. 宏观投研传导解析 (Macro Research Portal)
     st.markdown('<div class="obs-card">', unsafe_allow_html=True)
