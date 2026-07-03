@@ -695,18 +695,6 @@ try:
             
         if not db_matched:
             print(f"[Watchdog Hot-Reload] 侦测到 26630.xlsx 发生修改且数据库状态不一致，强刷管线...")
-            # Drop existing partition tables to wipe stale data before repopulating
-            try:
-                conn_clean = sqlite3.connect("my_data.db", timeout=60.0)
-                cur_clean = conn_clean.cursor()
-                cur_clean.execute("DROP TABLE IF EXISTS dashboard_coal_prices")
-                cur_clean.execute("DROP TABLE IF EXISTS dashboard_cpi_compare")
-                conn_clean.commit()
-                conn_clean.close()
-                print("[Watchdog Hot-Reload] Stale SQLite tables dropped to force clean repopulation.")
-            except Exception as e:
-                print(f"[Watchdog Hot-Reload] 清理旧数据失败: {e}")
-                
             schema_aligner.run_alignment_pipeline("26630.xlsx", force=True)
             st.cache_data.clear()
             st.cache_resource.clear()
