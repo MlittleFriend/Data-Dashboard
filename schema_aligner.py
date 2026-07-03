@@ -446,7 +446,7 @@ def run_alignment_pipeline(excel_file, force=False):
     sha = calculate_sha256(excel_file)
     mtime = str(os.path.getmtime(excel_file))
     
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=60.0)
     cursor = conn.cursor()
     
     # 检查是否已有缓存

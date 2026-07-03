@@ -29,7 +29,7 @@ except Exception as e:
 
 def check_and_upgrade_db():
     try:
-        conn = sqlite3.connect("my_data.db", timeout=10.0)
+        conn = sqlite3.connect("my_data.db", timeout=60.0)
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='text_records'")
         if cursor.fetchone():
@@ -512,7 +512,7 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
 
 def load_listener_status():
     try:
-        conn = sqlite3.connect("my_data.db", timeout=30.0)
+        conn = sqlite3.connect("my_data.db", timeout=60.0)
         cursor = conn.cursor()
         # 检查表是否存在
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='file_listener_status'")
@@ -540,7 +540,7 @@ def load_listener_status():
 @st.cache_data(ttl=5)
 def load_data(current_date_str):
     try:
-        conn = sqlite3.connect("my_data.db", timeout=30.0)
+        conn = sqlite3.connect("my_data.db", timeout=60.0)
     except Exception as e:
         # 控制论防御：如果数据库连接失败，构建空的 DataFrame 兜底
         print(f"[Fallback DB] Connection failed: {e}")
@@ -604,7 +604,7 @@ def load_data(current_date_str):
 def news_crawling_daemon():
     # 3.1 首次启动时的日常检测同步 (兼容原 `maybe_refresh_text_records` 行为)
     try:
-        conn = sqlite3.connect("my_data.db", timeout=30.0)
+        conn = sqlite3.connect("my_data.db", timeout=60.0)
         cursor = conn.cursor()
         cursor.execute("SELECT MAX(publish_time) FROM text_records")
         row = cursor.fetchone()
@@ -625,7 +625,7 @@ def news_crawling_daemon():
             if records:
                 # fetch_finance_news already split and sanitized title and content fields
                 df_res = pd.DataFrame(records)
-                conn = sqlite3.connect("my_data.db", timeout=30.0)
+                conn = sqlite3.connect("my_data.db", timeout=60.0)
                 df_res.to_sql("text_records", conn, if_exists="replace", index=False)
                 conn.close()
                 load_data.clear()
@@ -637,7 +637,7 @@ def news_crawling_daemon():
         try:
             records = fetch_finance_news(limit=10) # 获取最新快讯以筛选 Top 5
             if records:
-                conn = sqlite3.connect("my_data.db", timeout=30.0)
+                conn = sqlite3.connect("my_data.db", timeout=60.0)
                 # 读取已有 ID 集合以去重，防止重复写入膨胀
                 try:
                     existing_df = pd.read_sql_query("SELECT id FROM text_records", conn)
@@ -672,7 +672,7 @@ def news_crawling_daemon():
 threading.Thread(target=news_crawling_daemon, daemon=True).start()
 
 # 启动 26630.xlsx 数据监听与自适应对齐引擎守护线程
-schema_aligner.start_file_watcher()
+# schema_aligner.start_file_watcher()
 
 # 3.3 实时文件变更检测 (Hot-Reload Watchdog)
 # 在每次主脚本运行循环中监测 26630.xlsx，如果变更则清空缓存并触发重绘
@@ -683,7 +683,7 @@ try:
         
         db_matched = False
         try:
-            conn_chk = sqlite3.connect("my_data.db", timeout=5.0)
+            conn_chk = sqlite3.connect("my_data.db", timeout=60.0)
             cur_chk = conn_chk.cursor()
             cur_chk.execute("SELECT sha256, mtime FROM file_listener_status ORDER BY id DESC LIMIT 1")
             chk_row = cur_chk.fetchone()
@@ -695,6 +695,18 @@ try:
             
         if not db_matched:
             print(f"[Watchdog Hot-Reload] 侦测到 26630.xlsx 发生修改且数据库状态不一致，强刷管线...")
+            # Drop existing partition tables to wipe stale data before repopulating
+            try:
+                conn_clean = sqlite3.connect("my_data.db", timeout=60.0)
+                cur_clean = conn_clean.cursor()
+                cur_clean.execute("DROP TABLE IF EXISTS dashboard_coal_prices")
+                cur_clean.execute("DROP TABLE IF EXISTS dashboard_cpi_compare")
+                conn_clean.commit()
+                conn_clean.close()
+                print("[Watchdog Hot-Reload] Stale SQLite tables dropped to force clean repopulation.")
+            except Exception as e:
+                print(f"[Watchdog Hot-Reload] 清理旧数据失败: {e}")
+                
             schema_aligner.run_alignment_pipeline("26630.xlsx", force=True)
             st.cache_data.clear()
             st.cache_resource.clear()
@@ -987,7 +999,7 @@ with col_right:
         
         # 实时连通数据库以获取增量快讯数据
         try:
-            conn_fresh = sqlite3.connect("my_data.db", timeout=30.0)
+            conn_fresh = sqlite3.connect("my_data.db", timeout=60.0)
             df_news_fresh = pd.read_sql_query(
                 "SELECT title, content, url, publish_time FROM text_records ORDER BY publish_time DESC LIMIT 12",
                 conn_fresh,

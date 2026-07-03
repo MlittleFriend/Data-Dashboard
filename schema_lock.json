@@ -20,8 +20,8 @@
     "date": "Unnamed: 11"
   },
   "dashboard_coal_prices": {
-    "dlm_price": "元/吨.1",
-    "jm_price": "元/吨",
-    "date": "单位"
+    "dlm_price": "中国",
+    "jm_price": "中国.1",
+    "date": "国家"
   }
 }
