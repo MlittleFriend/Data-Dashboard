@@ -1020,11 +1020,21 @@ with col_right:
                 if not content or str(content).strip().lower() == "nan":
                     content = ""
                     
-                # 重新拼接前端展示文本
-                if not content:
+                # V1.1.4.1: 净化标题前缀冒号噪声，并优先展示纯净化标题以防止文本冗余
+                clean_title = re.sub(r"^.*?[：:]\s*", "", str(title)).strip()
+                if not clean_title:
+                    clean_title = str(title).strip()
+                
+                if clean_title:
+                    display_text = clean_title
+                elif not content:
                     display_text = title
                 else:
                     display_text = f"{title}：{content}"
+                
+                # 防御 None 或 nan 文本泄漏
+                if not display_text or display_text.strip().lower() in ["none", "nan", "null"]:
+                    display_text = "全球市场实时要闻"
                 
                 # 保证尾部以单个句号完结，彻底粉碎方括号与冒号尾缀
                 display_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', display_text) + "。"
