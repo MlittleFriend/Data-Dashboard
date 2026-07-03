@@ -1114,24 +1114,6 @@ with col_left:
             
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # V1.3.0.0 Stage 3: Dense Matrix Slices layout routing
-    st.markdown('<div class="obs-card" style="margin-top: 16px;">', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.05rem; margin-bottom:12px; font-weight: 700; letter-spacing:0.5px;">🗂️ 维度数据集矩阵视图 (Dense Matrix Slices)</h3>', unsafe_allow_html=True)
-    
-    matrix_tab1, matrix_tab2 = st.tabs(["📊 CPI 同比比较数据", "🔋 双焦日度价格明细"])
-    with matrix_tab1:
-        if not df_cpi_compare_filtered.empty:
-            st.dataframe(df_cpi_compare_filtered.sort_values(by="date", ascending=False), use_container_width=True, height=220)
-        else:
-            st.markdown('<p style="color:#64748b; font-size:0.82rem; margin:10px 0;">暂无可用数据</p>', unsafe_allow_html=True)
-            
-    with matrix_tab2:
-        if not df_coal_prices_filtered.empty:
-            st.dataframe(df_coal_prices_filtered.sort_values(by="date", ascending=False), use_container_width=True, height=220)
-        else:
-            st.markdown('<p style="color:#64748b; font-size:0.82rem; margin:10px 0;">暂无可用数据</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
 
 # 右半侧侧边栏：情报流与投研研究 (Live Info Feed & Deep Transmission)
 with col_right:
