@@ -765,8 +765,9 @@ try:
         except Exception:
             pass
             
-        if not db_matched or deviation_results.get("modified", False):
-            print(f"[Self-Inspection] 侦测到 26630.xlsx 发生修改或结构变异，启动自适应解析与对齐...")
+        # V1.3.0.3: 仅在物理文件发生哈希或修改时间变更时触发 (防范假性列名异动死循环)
+        if not db_matched:
+            print(f"[Self-Inspection] 侦测到 26630.xlsx 发生物理变更，启动自适应解析与对齐...")
             
             # 阶段 2: 触发列定义重构并缓存到 schema_lock.json
             schema_aligner.adaptive_llm_fallback_parser("26630.xlsx")
@@ -774,24 +775,27 @@ try:
             # 运行入库管线
             schema_aligner.run_alignment_pipeline("26630.xlsx", force=True)
             
-            # V1.3.0.2: 显式状态密封写入，防止自触发看门狗死锁循环
+            # V1.3.0.3: 显式状态密封写入，与 schema_aligner 架构字段对齐且防死锁
             try:
                 conn_save = sqlite3.connect("my_data.db", timeout=60.0)
                 cur_save = conn_save.cursor()
                 cur_save.execute('''
                     CREATE TABLE IF NOT EXISTS file_listener_status (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        file_name TEXT,
                         sha256 TEXT,
                         mtime TEXT,
-                        update_time TEXT,
-                        deep_analysis TEXT
+                        alignment_info TEXT,
+                        deep_analysis TEXT,
+                        update_time TEXT
                     )
                 ''')
                 import datetime as dt_mod
                 now_str = dt_mod.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cur_save.execute("DELETE FROM file_listener_status")
                 cur_save.execute(
-                    "INSERT INTO file_listener_status (sha256, mtime, update_time, deep_analysis) VALUES (?, ?, ?, ?)",
-                    (current_sha, current_mtime, now_str, "物价同比温和上涨，核心通胀维持平稳，双焦港口价格回升，生产端成本传导面临一定时滞。")
+                    "INSERT INTO file_listener_status (file_name, sha256, mtime, alignment_info, deep_analysis, update_time) VALUES (?, ?, ?, ?, ?, ?)",
+                    ("26630.xlsx", current_sha, current_mtime, "{}", "物价同比温和上涨，核心通胀维持平稳，双焦港口价格回升，生产端成本传导面临一定时滞。", now_str)
                 )
                 conn_save.commit()
                 conn_save.close()
