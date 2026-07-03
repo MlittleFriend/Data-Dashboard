@@ -606,6 +606,12 @@ def news_crawling_daemon():
     try:
         conn = sqlite3.connect("my_data.db", timeout=60.0)
         cursor = conn.cursor()
+        
+        # V1.1.4.4 Emergency Database Purge: wipe historical duplicate entries currently flooding my_data.db
+        cursor.execute("DELETE FROM text_records WHERE rowid NOT IN (SELECT MIN(rowid) FROM text_records GROUP BY title, publish_time)")
+        conn.commit()
+        print("[Daemon Startup] Emergency duplicates purge completed.")
+        
         cursor.execute("SELECT MAX(publish_time) FROM text_records")
         row = cursor.fetchone()
         result = row[0] if row else None
@@ -625,6 +631,8 @@ def news_crawling_daemon():
             if records:
                 # fetch_finance_news already split and sanitized title and content fields
                 df_res = pd.DataFrame(records)
+                # V1.1.4.4: 内存中去重以确保当前批次独立
+                df_res = df_res.drop_duplicates(subset=["title"])
                 conn = sqlite3.connect("my_data.db", timeout=60.0)
                 df_res.to_sql("text_records", conn, if_exists="replace", index=False)
                 conn.close()
@@ -638,17 +646,17 @@ def news_crawling_daemon():
             records = fetch_finance_news(limit=10) # 获取最新快讯以筛选 Top 5
             if records:
                 conn = sqlite3.connect("my_data.db", timeout=60.0)
-                # 读取已有 ID 集合以去重，防止重复写入膨胀
+                # V1.1.4.4: 读取已有 title 集合以去重，防止重复写入膨胀
                 try:
-                    existing_df = pd.read_sql_query("SELECT id FROM text_records", conn)
-                    existing_ids = set(existing_df["id"].astype(str).tolist())
+                    existing_df = pd.read_sql_query("SELECT title FROM text_records", conn)
+                    existing_titles = set(existing_df["title"].astype(str).tolist())
                 except Exception:
-                    existing_ids = set()
+                    existing_titles = set()
                     
                 new_records = []
                 for r in records:
-                    rid = str(r["id"])
-                    if rid not in existing_ids:
+                    title_val = str(r.get("title", "")).strip()
+                    if title_val and title_val not in existing_titles:
                         new_records.append(r)
                         
                 if new_records:
@@ -659,8 +667,12 @@ def news_crawling_daemon():
                     
                     df_new = pd.DataFrame(top_5_new)
                     df_new["id"] = df_new["id"].astype(str)
+                    
+                    # V1.1.4.4: 在内存中强制去重，防止当前批次本身含有重复行
+                    df_new = df_new.drop_duplicates(subset=["title"])
+                    
                     df_new.to_sql("text_records", conn, if_exists="append", index=False)
-                    print(f"[Daemon High-Freq] V1.1.2.6 appended {len(top_5_new)} global news items.")
+                    print(f"[Daemon High-Freq] V1.1.4.4 appended {len(df_new)} unique global news items.")
                 conn.close()
         except Exception as e:
             print(f"[Daemon High-Freq] News crawling daemon failed: {e}")
