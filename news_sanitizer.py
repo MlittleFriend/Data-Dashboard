@@ -184,20 +184,44 @@ def sanitize_news_item(rich_text):
     rich_text = rich_text.strip()
     
     # 彻底粉碎并清理原文本中的所有方括号 (防止提取逻辑混乱或含有残留方括号)
-    # 首先提取方括号中的标题（如果有的话）
-    m = re.match(r'^[【\[\(（]([^】\]\)）]+)[】\]\)）]', rich_text)
-    if m:
-        title = m.group(1).strip()
-        body = rich_text[m.end():].strip()
+    # 优先检测 HTML 粗体/标题标签作为文章实际标题 (代表真正的 bold text container，而不是来源/机构)
+    m_html = re.search(r'<(b|strong|h[1-6]|span\s+[^>]*font-weight:\s*bold[^>]*)>([^<]{4,})</\1>', rich_text, re.IGNORECASE)
+    if m_html:
+        title = m_html.group(2).strip()
+        body = rich_text.replace(m_html.group(0), "").strip()
     else:
-        # 寻找首个标点分界，从第 2 字向后查找到第 15 字，作为语义标题首选
-        split_idx = 10
-        for idx in range(2, 16):
-            if idx < len(rich_text) and rich_text[idx] in ['：', ':', '，', ',']:
-                split_idx = idx
-                break
-        title = rich_text[:split_idx].strip()
-        body = rich_text[split_idx:].strip()
+        # 其次提取方括号中的标题（如果有的话）
+        m = re.match(r'^[【\[\(（]([^】\]\)）]+)[】\]\)）]', rich_text)
+        if m:
+            title = m.group(1).strip()
+            body = rich_text[m.end():].strip()
+        else:
+            # 寻找首个标点分界作为语义标题首选，但禁止切分出无完整主谓结构（长度 < 5）的来源机构名称
+            split_idx = len(rich_text)
+            for idx in range(2, len(rich_text)):
+                if idx < 40 and rich_text[idx] in ['：', ':', '，', ',']:
+                    candidate_title = rich_text[:idx].strip()
+                    # 检查候选标题是否小于5个字，或者是否包含常见的无主谓信息的实体或来源元数据
+                    is_metadata = any(kw in candidate_title for kw in [
+                        "资讯", "观察哨", "快讯", "金十", "新浪", "分值", "机构", "研究院", 
+                        "分析", "发布", "董事长", "团队", "数据", "网", "社", "报", "电", "公司"
+                    ])
+                    if len(candidate_title) >= 5 and not is_metadata:
+                        split_idx = idx
+                        break
+            
+            if split_idx == len(rich_text):
+                # 如果没有合适的分割标点，尝试以首个句尾符分割
+                m_end = re.search(r'[。；;！!？?]', rich_text)
+                if m_end and 5 <= m_end.end() <= 40:
+                    title = rich_text[:m_end.end()].strip()
+                    body = rich_text[m_end.end():].strip()
+                else:
+                    title = rich_text[:35].strip()
+                    body = rich_text[35:].strip()
+            else:
+                title = rich_text[:split_idx].strip()
+                body = rich_text[split_idx:].strip()
 
     # 剥离提取后标题与正文内部所有的方括号/圆括号噪音，彻底不使用 【】 字符
     title = title.replace("【", "").replace("】", "").replace("[", "").replace("]", "").replace("（", "").replace("）", "").replace("(", "").replace(")", "")
@@ -278,6 +302,11 @@ def sanitize_news_item(rich_text):
         
     accumulated_body = re.sub(r'[。，,；;！!？?、\s：]+$', '', accumulated_body) + "。"
     accumulated_body = re.sub(r'。+$', '。', accumulated_body)
+
+    # V1.1.4.2: 标题字数强力熔断拦截（小于 5 字符的碎片直接判定为脏快讯）
+    title_strip = title.replace("。", "").strip()
+    if len(title_strip) < 5:
+        return "", ""
 
     return title.strip(), accumulated_body.strip()
         

@@ -1014,9 +1014,9 @@ with col_right:
                 if not title:
                     title, content = sanitize_news_item(str(content))
                     
-                # 再次校验分流后的 title 与 content
-                if not title or str(title).strip().lower() == "nan":
-                    title = "全球要闻"
+                # 再次校验分流后的 title 与 content (V1.1.4.2 Headline Guard)
+                if not title or str(title).strip().lower() == "nan" or len(str(title).replace("。", "").strip()) < 5:
+                    continue
                 if not content or str(content).strip().lower() == "nan":
                     content = ""
                     

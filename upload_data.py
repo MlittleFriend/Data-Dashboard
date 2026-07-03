@@ -175,6 +175,9 @@ def fetch_finance_news(limit=5):
             # 提取并清洗 title 和 content 独立字段
             raw_text = item.get("rich_text", "").strip()
             t, c = sanitize_news_item(raw_text)
+            # V1.1.4.2 Headline Guard: skip/wipe short/corrupt titles from pipeline
+            if not t or len(str(t).replace("。", "").strip()) < 5:
+                continue
             records.append({
                 "id": item.get("id"),
                 "publish_time": item.get("create_time"),
