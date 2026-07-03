@@ -13,7 +13,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 import schema_aligner
-from news_sanitizer import is_valid_url, sanitize_news_item
+from news_sanitizer import is_valid_url, sanitize_news_item, verify_semantic_integrity
 from upload_data import fetch_finance_news
 
 # 版本标识与前馈控制参数 V1.1.3.3
@@ -1014,8 +1014,8 @@ with col_right:
                 if not title:
                     title, content = sanitize_news_item(str(content))
                     
-                # 再次校验分流后的 title 与 content (V1.1.4.2 Headline Guard)
-                if not title or str(title).strip().lower() == "nan" or len(str(title).replace("。", "").strip()) < 5:
+                # 再次校验分流后的 title 与 content (V1.1.4.2 & V1.1.4.3 Headline & Semantic Guard)
+                if not title or str(title).strip().lower() == "nan" or len(str(title).replace("。", "").strip()) < 5 or not verify_semantic_integrity(title):
                     continue
                 if not content or str(content).strip().lower() == "nan":
                     content = ""

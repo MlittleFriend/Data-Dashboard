@@ -13,7 +13,7 @@ import openpyxl
 import pandas as pd
 import requests
 
-from news_sanitizer import is_valid_url, sanitize_news_item
+from news_sanitizer import is_valid_url, sanitize_news_item, verify_semantic_integrity
 
 DB_NAME = "my_data.db"
 EXCEL_FILE = "26630.xlsx"
@@ -175,8 +175,8 @@ def fetch_finance_news(limit=5):
             # 提取并清洗 title 和 content 独立字段
             raw_text = item.get("rich_text", "").strip()
             t, c = sanitize_news_item(raw_text)
-            # V1.1.4.2 Headline Guard: skip/wipe short/corrupt titles from pipeline
-            if not t or len(str(t).replace("。", "").strip()) < 5:
+            # V1.1.4.2 & V1.1.4.3: Headline Guard & Semantic SVO filter
+            if not t or len(str(t).replace("。", "").strip()) < 5 or not verify_semantic_integrity(t):
                 continue
             records.append({
                 "id": item.get("id"),
