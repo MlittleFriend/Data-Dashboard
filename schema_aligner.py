@@ -41,6 +41,22 @@ def calculate_sha256(filepath):
             for chunk in iter(lambda: f.read(65536), b""):
                 hasher.update(chunk)
         return hasher.hexdigest()
+    except PermissionError:
+        import shutil
+        temp_path = filepath + ".hash.tmp"
+        try:
+            shutil.copy2(filepath, temp_path)
+            with open(temp_path, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    hasher.update(chunk)
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+            return hasher.hexdigest()
+        except Exception as e:
+            print(f"[Hash Calc] 备份计算哈希失败: {e}")
+            return ""
     except Exception as e:
         print(f"[Hash Calc] 计算哈希失败: {e}")
         return ""
@@ -414,6 +430,14 @@ def run_alignment_pipeline(excel_file, force=False):
         print(f"[Pipeline] 未找到 {excel_file}，取消对齐。")
         return
         
+    import shutil
+    temp_excel_file = excel_file + ".pipeline.tmp.xlsx"
+    try:
+        shutil.copy2(excel_file, temp_excel_file)
+    except Exception as e:
+        print(f"[Pipeline] 无法创建临时影像复制: {e}")
+        temp_excel_file = excel_file
+        
     sha = calculate_sha256(excel_file)
     mtime = str(os.path.getmtime(excel_file))
     
@@ -438,6 +462,11 @@ def run_alignment_pipeline(excel_file, force=False):
         row = cursor.fetchone()
         if row and row[0] == sha and row[1] == mtime:
             # 文件无变动且非强制触发，直接返回
+            if temp_excel_file != excel_file and os.path.exists(temp_excel_file):
+                try:
+                    os.remove(temp_excel_file)
+                except Exception:
+                    pass
             conn.close()
             return
             
@@ -445,12 +474,12 @@ def run_alignment_pipeline(excel_file, force=False):
     
     try:
         # 打开 Excel 以提取 Sheets
-        wb = openpyxl.load_workbook(excel_file, read_only=True)
+        wb = openpyxl.load_workbook(temp_excel_file, read_only=True)
         sheet_names = wb.sheetnames
         wb.close()
         
         # 0. 瞬时生成结构快照
-        save_schema_snapshot(excel_file, sheet_names)
+        save_schema_snapshot(temp_excel_file, sheet_names)
         
         # 1. 动态对齐工作表
         sheet_cpi = find_sheet_by_keyword(sheet_names, ["图1，5", "图1", "1，5", "cpi同比"]) or "图1，5"
@@ -458,12 +487,12 @@ def run_alignment_pipeline(excel_file, force=False):
         sheet_coal = find_sheet_by_keyword(sheet_names, ["图3，4", "图3", "煤炭", "coal"]) or "图3，4"
         
         # 2. 依次加载并解析
-        df_cpi, map_cpi = process_sheet(excel_file, sheet_cpi, "dashboard_cpi_compare")
-        df_cat, map_cat = process_sheet(excel_file, sheet_cat, "cpi_categories")
-        df_coal, map_coal = process_sheet(excel_file, sheet_coal, "dashboard_coal_prices")
+        df_cpi, map_cpi = process_sheet(temp_excel_file, sheet_cpi, "dashboard_cpi_compare")
+        df_cat, map_cat = process_sheet(temp_excel_file, sheet_cat, "cpi_categories")
+        df_coal, map_coal = process_sheet(temp_excel_file, sheet_coal, "dashboard_coal_prices")
         
         # 兼容性表 (cpi_trend)
-        df_trend, map_trend = process_sheet(excel_file, sheet_cpi, "cpi_trend")
+        df_trend, map_trend = process_sheet(temp_excel_file, sheet_cpi, "cpi_trend")
         
         # 3. 将对齐数据入库
         df_cpi.to_sql("dashboard_cpi_compare", conn, if_exists="replace", index=False)
@@ -524,7 +553,7 @@ def run_alignment_pipeline(excel_file, force=False):
             print("[Pipeline] schema_lock.json 映射关系已刷新锁定。")
         except Exception as e:
             print(f"[Pipeline] 写入 schema_lock.json 失败: {e}")
-
+ 
         # 保存状态
         cursor.execute("DELETE FROM file_listener_status")
         cursor.execute(
@@ -545,6 +574,11 @@ def run_alignment_pipeline(excel_file, force=False):
         import traceback
         traceback.print_exc()
     finally:
+        if temp_excel_file != excel_file and os.path.exists(temp_excel_file):
+            try:
+                os.remove(temp_excel_file)
+            except Exception:
+                pass
         conn.close()
 
 
