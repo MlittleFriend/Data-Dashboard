@@ -1032,21 +1032,24 @@ with col_right:
                 if not content or str(content).strip().lower() == "nan":
                     content = ""
                     
-                # V1.1.4.1: 净化标题前缀冒号噪声，并优先展示纯净化标题以防止文本冗余
+               # =====================================================================
+                # V1.1.4.5: FILTERING DAMAGE GUARD & AUTOMATIC TEXT FALLBACK ENGINE
+                # =====================================================================
+                # 1. 尝试执行前缀冒号噪声净化
                 clean_title = re.sub(r"^.*?[：:]\s*", "", str(title)).strip()
-                if not clean_title:
-                    clean_title = str(title).strip()
                 
-                if clean_title:
-                    display_text = clean_title
-                elif not content:
-                    display_text = title
+                # 2. 核心硬审计：如果剪辑后的标题短于12字，或未能通过主谓宾完备性断言，判定为误伤截断
+                if len(clean_title.replace("。", "").strip()) < 12 or not verify_semantic_integrity(clean_title):
+                    # 触发安全回滚：放弃激进裁剪版本，无条件强制回滚使用未被腰斩的原始完整文本
+                    display_text = str(title).strip()
                 else:
-                    display_text = f"{title}：{content}"
+                    # 审计通过：使用净化后的高密度标题
+                    display_text = clean_title
                 
-                # 防御 None 或 nan 文本泄漏
+                # 3. 如果标题处理后依然异常空滞，自动启用 content 作为二级兜底
                 if not display_text or display_text.strip().lower() in ["none", "nan", "null"]:
-                    display_text = "全球市场实时要闻"
+                    display_text = str(content).strip() if content else "全球市场实时要闻"
+                # =====================================================================
                 
                 # 保证尾部以单个句号完结，彻底粉碎方括号与冒号尾缀
                 display_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', display_text) + "。"
