@@ -749,21 +749,39 @@ def adaptive_llm_fallback_parser(excel_path: str, lock_path: str = "schema_lock.
             matched_cpi = ""
             matched_core = ""
             
-            for col in df_cpi.columns:
+            # V1.3.1.0: 限制扫描到 11 到 25 列，防范非国债/非中国本币指标干扰，且精确拦截环比与累计噪声
+            scan_cols = list(df_cpi.columns)[11:25]
+            for col in scan_cols:
                 cell_vals = [str(col)] + [str(x) for x in df_cpi[col].head(10)]
+                cell_text_lower = " ".join(cell_vals).lower()
+                
+                # 日期主键对齐
                 if any(re.search(r"单位|时间|日期|date|time", str(v).lower()) for v in cell_vals):
-                    matched_date = str(col)
+                    if "unnamed: 11" in str(col).lower():
+                        matched_date = str(col)
+                    elif not matched_date:
+                        matched_date = str(col)
+                
+                # CPI同比对齐 (排除核心及环比、累计指标)
                 if any(re.search(r"cpi当月同比|cpi同比|cpi_yoy", str(v).lower()) for v in cell_vals):
-                    matched_cpi = str(col)
-                if any(re.search(r"核心cpi|core_cpi", str(v).lower()) for v in cell_vals):
-                    matched_core = str(col)
+                    if not any(x in cell_text_lower for x in ["核心", "core", "环比", "累计", "不包括", "食品和能源"]):
+                        matched_cpi = str(col)
+                        
+                # 核心CPI同比对齐 (排除环比、累计指标，且优先匹配带有“同比/yoy”特征的列名)
+                if any(re.search(r"核心cpi|core_cpi|不包括食品和能源", str(v).lower()) for v in cell_vals):
+                    if not any(x in cell_text_lower for x in ["环比", "累计", "mom", "ytd"]):
+                        if any(re.search(r"同比|yoy", str(v).lower()) for v in cell_vals):
+                            matched_core = str(col)
+                        elif not matched_core:
+                            matched_core = str(col)
             
-            if not matched_date and len(df_cpi.columns) > 34:
-                matched_date = str(df_cpi.columns[34])
-            if not matched_cpi and len(df_cpi.columns) > 35:
-                matched_cpi = str(df_cpi.columns[35])
-            if not matched_core and len(df_cpi.columns) > 36:
-                matched_core = str(df_cpi.columns[36])
+            # fallback 定位兜底
+            if not matched_date and len(df_cpi.columns) > 11:
+                matched_date = str(df_cpi.columns[11])
+            if not matched_cpi and len(df_cpi.columns) > 13:
+                matched_cpi = str(df_cpi.columns[13])
+            if not matched_core and len(df_cpi.columns) > 14:
+                matched_core = str(df_cpi.columns[14])
                 
             mappings["dashboard_cpi_compare"] = {
                 "cpi_yoy": matched_cpi,

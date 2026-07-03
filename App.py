@@ -562,6 +562,36 @@ def load_data(current_date_str):
     except Exception:
         df_cpi_compare = pd.DataFrame(columns=["date", "cpi_yoy", "core_cpi_yoy"])
 
+    # V1.3.1.0: 数据类型强转与零值防御性重新对齐 (Type Coercion & Emergency Re-Alignment)
+    if not df_cpi_compare.empty:
+        df_cpi_compare["core_cpi_yoy"] = pd.to_numeric(df_cpi_compare["core_cpi_yoy"], errors="coerce")
+        df_cpi_compare["cpi_yoy"] = pd.to_numeric(df_cpi_compare["cpi_yoy"], errors="coerce")
+        
+        # 紧急内存对齐审计：如果在所有非空样本中 core_cpi_yoy 的均值等于 0.0，说明发生了严重的列选择错位或数据断流
+        non_null_core = df_cpi_compare["core_cpi_yoy"].dropna()
+        if len(non_null_core) > 0 and (non_null_core == 0.0).all():
+            print("[Anti-Zero Interception] Mapped Core CPI is all 0.0! Executing emergency schema alignment...")
+            try:
+                if os.path.exists("26630.xlsx"):
+                    import shutil
+                    temp_emerg_path = "26630.xlsx.emerg_val.tmp.xlsx"
+                    shutil.copy2("26630.xlsx", temp_emerg_path)
+                    df_emerg = pd.read_excel(temp_emerg_path, sheet_name="图1，5")
+                    if os.path.exists(temp_emerg_path):
+                        os.remove(temp_emerg_path)
+                    
+                    # 重新将 Unnamed: 14 设为核心 CPI 并与主表做对齐合并
+                    df_emerg_slice = df_emerg[["Unnamed: 11", "Unnamed: 14"]].copy()
+                    df_emerg_slice.columns = ["date", "core_cpi_yoy"]
+                    df_emerg_slice["date"] = pd.to_datetime(df_emerg_slice["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                    df_emerg_slice = df_emerg_slice.dropna()
+                    
+                    df_cpi_compare = df_cpi_compare.drop(columns=["core_cpi_yoy"]).merge(df_emerg_slice, on="date", how="left")
+                    df_cpi_compare["core_cpi_yoy"] = pd.to_numeric(df_cpi_compare["core_cpi_yoy"], errors="coerce")
+                    print("[Anti-Zero Interception] Emergency alignment successful. Valid float core_cpi_yoy restored.")
+            except Exception as e_emerg:
+                print(f"[Anti-Zero Interception] Emergency realignment failed: {e_emerg}")
+
     try:
         df_coal_prices = pd.read_sql_query("SELECT * FROM dashboard_coal_prices", conn)
     except Exception:
