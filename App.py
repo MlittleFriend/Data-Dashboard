@@ -686,12 +686,13 @@ threading.Thread(target=news_crawling_daemon, daemon=True).start()
 # 启动 26630.xlsx 数据监听与自适应对齐引擎守护线程
 # schema_aligner.start_file_watcher()
 
-# 3.3 实时文件变更检测 (Hot-Reload Watchdog)
-# 在每次主脚本运行循环中监测 26630.xlsx，如果变更则清空缓存并触发重绘
+# 3.3 实时文件变更与自适应自检网关 (Hot-Reload Watchdog & V1.3.0.0 Self-Inspection)
 try:
     if os.path.exists("26630.xlsx"):
-        current_mtime = str(os.path.getmtime("26630.xlsx"))
-        current_sha = schema_aligner.calculate_sha256("26630.xlsx")
+        # 阶段 1: 监测文件修改及结构异常日志
+        deviation_results = schema_aligner.verify_and_log_excel_deviations("26630.xlsx")
+        current_sha = deviation_results.get("sha256", "")
+        current_mtime = deviation_results.get("mtime", "")
         
         db_matched = False
         try:
@@ -705,14 +706,21 @@ try:
         except Exception:
             pass
             
-        if not db_matched:
-            print(f"[Watchdog Hot-Reload] 侦测到 26630.xlsx 发生修改且数据库状态不一致，强刷管线...")
+        if not db_matched or deviation_results.get("modified", False):
+            print(f"[Self-Inspection] 侦测到 26630.xlsx 发生修改或结构变异，启动自适应解析与对齐...")
+            
+            # 阶段 2: 触发列定义重构并缓存到 schema_lock.json
+            schema_aligner.adaptive_llm_fallback_parser("26630.xlsx")
+            
+            # 运行入库管线
             schema_aligner.run_alignment_pipeline("26630.xlsx", force=True)
+            
+            # 清理缓存并触发重绘
             st.cache_data.clear()
             st.cache_resource.clear()
             st.rerun()
 except Exception as e:
-    print(f"[Watchdog Hot-Reload] 异常: {e}")
+    print(f"[Self-Inspection] 运行异常: {e}")
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")

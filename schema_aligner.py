@@ -627,6 +627,177 @@ def start_file_watcher():
     print("[Watcher] 26630 动态监听守护线程已在后台挂载启动！(轮询周期: 2s)")
 
 
+def verify_and_log_excel_deviations(excel_path: str) -> dict:
+    """
+    V1.3.0.0 Stage 1: 通用 Excel 文件监视器
+    实时监测 26630.xlsx 的物理修改，计算 SHA-256 并分析和比对结构变化。
+    """
+    import os
+    import hashlib
+    import pandas as pd
+    
+    results = {"modified": False, "sha256": "", "mtime": "", "deviations": []}
+    if not os.path.exists(excel_path):
+        return results
+        
+    try:
+        mtime = str(os.path.getmtime(excel_path))
+        sha256_hash = hashlib.sha256()
+        with open(excel_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        current_sha = sha256_hash.hexdigest()
+        
+        results["sha256"] = current_sha
+        results["mtime"] = mtime
+        
+        snapshot_path = "schema_snapshot.json"
+        if os.path.exists(snapshot_path):
+            import json
+            with open(snapshot_path, "r", encoding="utf-8") as sf:
+                old_snapshot = json.load(sf)
+            
+            import shutil
+            temp_file = excel_path + ".watcher.tmp.xlsx"
+            shutil.copy2(excel_path, temp_file)
+            
+            new_sheets = {}
+            try:
+                xls = pd.ExcelFile(temp_file)
+                for sheet in xls.sheet_names:
+                    df = pd.read_excel(xls, sheet_name=sheet)
+                    new_sheets[sheet] = list(df.columns)
+                xls.close()
+            finally:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    
+            for sheet, cols in new_sheets.items():
+                if sheet not in old_snapshot:
+                    results["deviations"].append(f"[NEW SHEET] {sheet}")
+                else:
+                    old_cols = old_snapshot[sheet]
+                    if cols != old_cols:
+                        results["deviations"].append(f"[SHEET COLUMN MUTATION] {sheet}: Old={old_cols} -> New={cols}")
+            
+            if results["deviations"]:
+                results["modified"] = True
+                print(f"[Watcher Trigger] 侦测到结构变异: {results['deviations']}")
+        else:
+            results["modified"] = True
+    except Exception as e:
+        print(f"[Watcher Trigger] 异常: {e}")
+        
+    return results
+
+
+def adaptive_llm_fallback_parser(excel_path: str, lock_path: str = "schema_lock.json") -> dict:
+    """
+    V1.3.0.0 Stage 2: 智中继自适应列映射解析器
+    当文件变更且无法匹配时，自适应重构列定义，并自动写入/缓存到 schema_lock.json。
+    """
+    import os
+    import re
+    import json
+    import pandas as pd
+    import shutil
+    
+    mappings = {
+        "dashboard_cpi_compare": {},
+        "dashboard_coal_prices": {}
+    }
+    
+    if not os.path.exists(excel_path):
+        return mappings
+        
+    temp_file = excel_path + ".parser.tmp.xlsx"
+    try:
+        shutil.copy2(excel_path, temp_file)
+        xls = pd.ExcelFile(temp_file)
+        
+        if "图3，4" in xls.sheet_names:
+            df_coal = pd.read_excel(xls, sheet_name="图3，4")
+            matched_date = ""
+            matched_dlm = ""
+            matched_jm = ""
+            
+            for col in df_coal.columns:
+                cell_vals = [str(col)] + [str(x) for x in df_coal[col].head(10)]
+                if any(re.search(r"单位|国家|日期|时间|date|time", str(v).lower()) for v in cell_vals):
+                    matched_date = str(col)
+                if any(re.search(r"动力煤|dlm|s009760051", str(v).lower()) for v in cell_vals):
+                    matched_dlm = str(col)
+                if any(re.search(r"焦煤|jm|s009760047", str(v).lower()) for v in cell_vals):
+                    matched_jm = str(col)
+            
+            if not matched_date and len(df_coal.columns) > 26:
+                matched_date = str(df_coal.columns[26])
+            if not matched_dlm and len(df_coal.columns) > 27:
+                matched_dlm = str(df_coal.columns[27])
+            if not matched_jm and len(df_coal.columns) > 28:
+                matched_jm = str(df_coal.columns[28])
+                
+            mappings["dashboard_coal_prices"] = {
+                "dlm_price": matched_dlm,
+                "jm_price": matched_jm,
+                "date": matched_date
+            }
+            
+        if "图1，5" in xls.sheet_names:
+            df_cpi = pd.read_excel(xls, sheet_name="图1，5")
+            matched_date = ""
+            matched_cpi = ""
+            matched_core = ""
+            
+            for col in df_cpi.columns:
+                cell_vals = [str(col)] + [str(x) for x in df_cpi[col].head(10)]
+                if any(re.search(r"单位|时间|日期|date|time", str(v).lower()) for v in cell_vals):
+                    matched_date = str(col)
+                if any(re.search(r"cpi当月同比|cpi同比|cpi_yoy", str(v).lower()) for v in cell_vals):
+                    matched_cpi = str(col)
+                if any(re.search(r"核心cpi|core_cpi", str(v).lower()) for v in cell_vals):
+                    matched_core = str(col)
+            
+            if not matched_date and len(df_cpi.columns) > 34:
+                matched_date = str(df_cpi.columns[34])
+            if not matched_cpi and len(df_cpi.columns) > 35:
+                matched_cpi = str(df_cpi.columns[35])
+            if not matched_core and len(df_cpi.columns) > 36:
+                matched_core = str(df_cpi.columns[36])
+                
+            mappings["dashboard_cpi_compare"] = {
+                "cpi_yoy": matched_cpi,
+                "core_cpi_yoy": matched_core,
+                "date": matched_date
+            }
+            
+        xls.close()
+        
+        if os.path.exists(lock_path):
+            with open(lock_path, "r", encoding="utf-8") as lf:
+                try:
+                    lock_data = json.load(lf)
+                except Exception:
+                    lock_data = {}
+        else:
+            lock_data = {}
+            
+        for table_key, table_map in mappings.items():
+            if table_map:
+                lock_data[table_key] = table_map
+                
+        with open(lock_path, "w", encoding="utf-8") as lf:
+            json.dump(lock_data, lf, ensure_ascii=False, indent=2)
+            
+        print(f"[Adaptive Parser] Column definitions mapped and cached to {lock_path}")
+        
+    finally:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+            
+    return mappings
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("🤖 26630.xlsx 自适应语义对齐引擎测试启动...")
