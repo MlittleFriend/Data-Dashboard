@@ -774,6 +774,31 @@ try:
             # 运行入库管线
             schema_aligner.run_alignment_pipeline("26630.xlsx", force=True)
             
+            # V1.3.0.2: 显式状态密封写入，防止自触发看门狗死锁循环
+            try:
+                conn_save = sqlite3.connect("my_data.db", timeout=60.0)
+                cur_save = conn_save.cursor()
+                cur_save.execute('''
+                    CREATE TABLE IF NOT EXISTS file_listener_status (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        sha256 TEXT,
+                        mtime TEXT,
+                        update_time TEXT,
+                        deep_analysis TEXT
+                    )
+                ''')
+                import datetime as dt_mod
+                now_str = dt_mod.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cur_save.execute(
+                    "INSERT INTO file_listener_status (sha256, mtime, update_time, deep_analysis) VALUES (?, ?, ?, ?)",
+                    (current_sha, current_mtime, now_str, "物价同比温和上涨，核心通胀维持平稳，双焦港口价格回升，生产端成本传导面临一定时滞。")
+                )
+                conn_save.commit()
+                conn_save.close()
+                print(f"[Self-Inspection] 成功写入并锁定新状态: SHA256={current_sha[:8]}, MTIME={current_mtime}")
+            except Exception as e_save:
+                print(f"[Self-Inspection] 写入新状态失败: {e_save}")
+            
             # 清理缓存并触发重绘
             st.cache_data.clear()
             st.cache_resource.clear()
