@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import sqlite3
 import threading
@@ -587,6 +588,15 @@ def load_data(current_date_str):
         target_macro_html = ""
 
     conn.close()
+    
+    # Restrict chart timeline to a 10-year window (2016–2026)
+    current_year = 2026
+    limit_date = f"{current_year - 10}-01-01"
+    df_trend = df_trend[df_trend['date'] >= limit_date]
+    df_cat = df_cat[df_cat['date'] >= limit_date]
+    df_cpi_compare = df_cpi_compare[df_cpi_compare['date'] >= limit_date]
+    df_coal_prices = df_coal_prices[df_coal_prices['date'] >= limit_date]
+    
     return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_news, target_macro_html
 
 
@@ -664,6 +674,38 @@ threading.Thread(target=news_crawling_daemon, daemon=True).start()
 # 启动 26630.xlsx 数据监听与自适应对齐引擎守护线程
 schema_aligner.start_file_watcher()
 
+# 3.3 实时文件变更检测 (Hot-Reload Watchdog)
+# 在每次主脚本运行循环中监测 26630.xlsx，如果变更则清空缓存并触发重绘
+try:
+    if os.path.exists("26630.xlsx"):
+        current_mtime = str(os.path.getmtime("26630.xlsx"))
+        current_sha = schema_aligner.calculate_sha256("26630.xlsx")
+        
+        last_mtime = st.session_state.get("watchdog_mtime", "")
+        last_sha = st.session_state.get("watchdog_sha", "")
+        
+        db_matched = False
+        try:
+            conn_chk = sqlite3.connect("my_data.db", timeout=5.0)
+            cur_chk = conn_chk.cursor()
+            cur_chk.execute("SELECT sha256, mtime FROM file_listener_status ORDER BY id DESC LIMIT 1")
+            chk_row = cur_chk.fetchone()
+            if chk_row and chk_row[0] == current_sha and chk_row[1] == current_mtime:
+                db_matched = True
+            conn_chk.close()
+        except Exception:
+            pass
+            
+        if (current_mtime != last_mtime or current_sha != last_sha):
+            print(f"[Watchdog Hot-Reload] 侦测到 26630.xlsx 变更，刷新数据源...")
+            if not db_matched:
+                schema_aligner.run_alignment_pipeline("26630.xlsx", force=True)
+            st.session_state["watchdog_mtime"] = current_mtime
+            st.session_state["watchdog_sha"] = current_sha
+            st.cache_data.clear()
+            st.rerun()
+except Exception as e:
+    print(f"[Watchdog Hot-Reload] 异常: {e}")
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")

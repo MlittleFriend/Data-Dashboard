@@ -340,6 +340,11 @@ def process_sheet(excel_file, sheet_name, sheet_type):
         extracted_df = extracted_df[(extracted_df["dlm_price"] > 0) & (extracted_df["jm_price"] > 0)]
         
     extracted_df = extracted_df.sort_values(by="date", ascending=True).reset_index(drop=True)
+    
+    # Restrict chart timeline to a 10-year window (2016–2026)
+    current_year = 2026
+    extracted_df = extracted_df[extracted_df["date"] >= f"{current_year - 10}-01-01"]
+    
     return extracted_df, mappings
 
 
