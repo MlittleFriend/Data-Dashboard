@@ -544,7 +544,7 @@ def load_data(current_date_str):
     except Exception as e:
         # 控制论防御：如果数据库连接失败，构建空的 DataFrame 兜底
         print(f"[Fallback DB] Connection failed: {e}")
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), ""
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), ""
 
     # 2.1 Excel 数字数据
     try:
@@ -596,6 +596,15 @@ def load_data(current_date_str):
         df_coal_prices = pd.read_sql_query("SELECT * FROM dashboard_coal_prices", conn)
     except Exception:
         df_coal_prices = pd.DataFrame(columns=["date", "dlm_price", "jm_price"])
+
+    # V1.4.2.0: 食品分项价格矩阵加载
+    try:
+        df_food_prices = pd.read_sql_query("SELECT * FROM dashboard_food_prices", conn)
+        for col in ["fresh_vegetable", "egg", "fresh_fruit", "pork"]:
+            if col in df_food_prices.columns:
+                df_food_prices[col] = pd.to_numeric(df_food_prices[col], errors="coerce")
+    except Exception:
+        df_food_prices = pd.DataFrame(columns=["date", "fresh_vegetable", "egg", "fresh_fruit", "pork"])
 
     # 2.2 顶部新浪 7x24 实时快讯
     try:
@@ -686,7 +695,7 @@ def load_data(current_date_str):
                 try: os.remove(temp_val_path)
                 except Exception: pass
                 
-    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_news, target_macro_html
+    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html
 
 
 # 3. 控制论高频前馈守护线程：兼顾每日首次初始化探测与10分钟高频全球热点 Top 5 增量爬取
@@ -842,7 +851,7 @@ except Exception as e:
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
-df_trend, df_cat, df_cpi_compare, df_coal_prices, df_news, target_macro_html = load_data(today_str)
+df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html = load_data(today_str)
 
 
 # 5. 侧边栏/控制面板 (Sidebar Control Panel)
@@ -888,6 +897,7 @@ def filter_dataframe_by_timespan(df, date_col, time_span_option):
 # 对折线图数据表执行过滤
 df_cpi_compare_filtered = filter_dataframe_by_timespan(df_cpi_compare, "date", time_span)
 df_coal_prices_filtered = filter_dataframe_by_timespan(df_coal_prices, "date", time_span)
+df_food_prices_filtered = filter_dataframe_by_timespan(df_food_prices, "date", time_span)
 
 st.sidebar.markdown("---")
 
@@ -1092,7 +1102,34 @@ with col_left:
                 ⚠️ 26630 异常断流：未匹配到有效的物价核心分项数据，请检查上游格式！
             </div>
             """, unsafe_allow_html=True)
-            
+
+        st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+
+        # C. V1.4.2.0: 主要食品分项微观物价价格走势
+        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 主要食品分项微观物价价格走势 (自适应双Y轴分流)</p>", unsafe_allow_html=True)
+        if not df_food_prices_filtered.empty:
+            df_food_display = df_food_prices_filtered.rename(columns={
+                "fresh_vegetable": "鲜菜 (元/公斤)",
+                "egg": "鸡蛋 (元/公斤)",
+                "fresh_fruit": "鲜果 (元/公斤)",
+                "pork": "猪肉 (元/公斤)"
+            })
+            fig_food = render_dual_axis_line_chart(
+                df_food_display,
+                "date",
+                ["鲜菜 (元/公斤)", "鸡蛋 (元/公斤)", "鲜果 (元/公斤)", "猪肉 (元/公斤)"],
+                colors=["#10b981", "#ffb703", "#00f0ff", "#ff2e93"],
+                primary_y_title="元/公斤",
+                secondary_y_title="猪肉 (元/公斤)"
+            )
+            st.plotly_chart(fig_food, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.markdown("""
+            <div style="background: rgba(255, 59, 48, 0.15); border: 2px solid #ff3b30; border-radius: 8px; padding: 20px; text-align: center; color: #ff6b6b; font-weight: 700; margin: 15px 0;">
+                ⚠️ 26630 异常断流：未匹配到有效的食品分项价格时序，请检查上游 图6 工作表！
+            </div>
+            """, unsafe_allow_html=True)
+
     with tab2:
         # C. 动力煤与焦煤现货价格对比
         st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 港口动力煤现货与炼焦煤均价日度联动曲线 (自适应聚类双轴)</p>", unsafe_allow_html=True)

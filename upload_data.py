@@ -278,9 +278,40 @@ def import_dashboard_charts_to_db():
     coal_prices_df = coal_prices_df[(coal_prices_df["dlm_price"] > 0) & (coal_prices_df["jm_price"] > 0)]
     coal_prices_df = coal_prices_df.sort_values(by="date", ascending=True).reset_index(drop=True)
 
+    # V1.4.2.0: 食品分项价格矩阵解析 (图6 工作表)
+    food_prices_df = None
+    try:
+        # 动态检测 "图6" 工作表 (注意: 工作表名可能含尾随空格)
+        food_sheet_name = None
+        xls_sheets = pd.ExcelFile(excel_file).sheet_names
+        for sn in xls_sheets:
+            if sn.strip() == "图6":
+                food_sheet_name = sn
+                break
+        
+        if food_sheet_name:
+            print(f"[Dashboard Parser] 动态检测到食品分项价格数据源: sheet='{food_sheet_name}'")
+            df6 = pd.read_excel(excel_file, sheet_name=food_sheet_name)
+            # 列映射: Unnamed:1=日期, Unnamed:4=鸡蛋, Unnamed:5=鲜菜, Unnamed:6=鲜果, Unnamed:7=猪肉（右）
+            food_prices_df = df6.iloc[12:, [1, 5, 4, 6, 7]].copy()
+            food_prices_df.columns = ["date", "fresh_vegetable", "egg", "fresh_fruit", "pork"]
+            food_prices_df["date"] = food_prices_df["date"].apply(parse_date)
+            for col in ["fresh_vegetable", "egg", "fresh_fruit", "pork"]:
+                food_prices_df[col] = pd.to_numeric(food_prices_df[col], errors="coerce")
+            food_prices_df = food_prices_df.dropna()
+            food_prices_df = food_prices_df.sort_values(by="date", ascending=True).reset_index(drop=True)
+            print(f"[Dashboard Parser] 食品分项价格解析成功: {len(food_prices_df)} 行有效数据")
+        else:
+            print("[Dashboard Parser] 未找到 '图6' 工作表，食品分项价格将跳过")
+    except Exception as e_food:
+        print(f"[Dashboard Parser] 食品分项价格解析异常: {e_food}")
+
     conn = sqlite3.connect(db_name)
     cpi_compare_df.to_sql("dashboard_cpi_compare", conn, if_exists="replace", index=False)
     coal_prices_df.to_sql("dashboard_coal_prices", conn, if_exists="replace", index=False)
+    if food_prices_df is not None and not food_prices_df.empty:
+        food_prices_df.to_sql("dashboard_food_prices", conn, if_exists="replace", index=False)
+        print("[Database] dashboard_food_prices 食品分项价格表同步成功！")
     conn.close()
     print("[Database] DASHBOARD 折线图数据同步成功！")
 
