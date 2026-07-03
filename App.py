@@ -681,9 +681,6 @@ try:
         current_mtime = str(os.path.getmtime("26630.xlsx"))
         current_sha = schema_aligner.calculate_sha256("26630.xlsx")
         
-        last_mtime = st.session_state.get("watchdog_mtime", "")
-        last_sha = st.session_state.get("watchdog_sha", "")
-        
         db_matched = False
         try:
             conn_chk = sqlite3.connect("my_data.db", timeout=5.0)
@@ -696,13 +693,11 @@ try:
         except Exception:
             pass
             
-        if (current_mtime != last_mtime or current_sha != last_sha):
-            print(f"[Watchdog Hot-Reload] 侦测到 26630.xlsx 变更，刷新数据源...")
-            if not db_matched:
-                schema_aligner.run_alignment_pipeline("26630.xlsx", force=True)
-            st.session_state["watchdog_mtime"] = current_mtime
-            st.session_state["watchdog_sha"] = current_sha
+        if not db_matched:
+            print(f"[Watchdog Hot-Reload] 侦测到 26630.xlsx 发生修改且数据库状态不一致，强刷管线...")
+            schema_aligner.run_alignment_pipeline("26630.xlsx", force=True)
             st.cache_data.clear()
+            st.cache_resource.clear()
             st.rerun()
 except Exception as e:
     print(f"[Watchdog Hot-Reload] 异常: {e}")
