@@ -597,6 +597,65 @@ def load_data(current_date_str):
     df_cpi_compare = df_cpi_compare[df_cpi_compare['date'] >= limit_date]
     df_coal_prices = df_coal_prices[df_coal_prices['date'] >= limit_date]
     
+    # V1.3.0.0 Stage 4: Pre-Upload Hard Interception Gate (Anti-Leak Watchdog)
+    if os.path.exists("26630.xlsx"):
+        import shutil
+        temp_val_path = "26630.xlsx.load_val.tmp.xlsx"
+        try:
+            shutil.copy2("26630.xlsx", temp_val_path)
+            
+            # Load raw Excel worksheets to count rows with dates >= 2016-01-01
+            # 1. Coal prices worksheet (图3，4)
+            df_ex_coal = pd.read_excel(temp_val_path, sheet_name="图3，4")
+            
+            import json
+            date_col_coal = "国家"
+            date_col_cpi = "Unnamed: 11"
+            if os.path.exists("schema_lock.json"):
+                with open("schema_lock.json", "r", encoding="utf-8") as f_lock:
+                    lock_data = json.load(f_lock)
+                    date_col_coal = lock_data.get("dashboard_coal_prices", {}).get("date", "国家")
+                    date_col_cpi = lock_data.get("dashboard_cpi_compare", {}).get("date", "Unnamed: 11")
+            
+            def parse_val_date(val):
+                if isinstance(val, pd.Timestamp) or hasattr(val, "strftime"):
+                    return val.strftime("%Y-%m-%d")
+                try:
+                    return pd.to_datetime(val).strftime("%Y-%m-%d")
+                except Exception:
+                    return ""
+            
+            # Coal count check
+            if date_col_coal in df_ex_coal.columns:
+                df_ex_coal_dates = df_ex_coal[date_col_coal].apply(parse_val_date)
+                ex_coal_valid = df_ex_coal_dates[df_ex_coal_dates >= limit_date]
+                excel_coal_count = len(ex_coal_valid)
+                db_coal_count = len(df_coal_prices)
+                
+                if abs(excel_coal_count - db_coal_count) > 10:
+                    raise RuntimeError(f"Severe row mismatch in Coal Prices: Excel={excel_coal_count}, DB={db_coal_count}")
+            
+            # CPI count check
+            df_ex_cpi = pd.read_excel(temp_val_path, sheet_name="图1，5")
+            if date_col_cpi in df_ex_cpi.columns:
+                df_ex_cpi_dates = df_ex_cpi[date_col_cpi].apply(parse_val_date)
+                ex_cpi_valid = df_ex_cpi_dates[df_ex_cpi_dates >= limit_date]
+                excel_cpi_count = len(ex_cpi_valid)
+                db_cpi_count = len(df_cpi_compare)
+                
+                if abs(excel_cpi_count - db_cpi_count) > 10:
+                    raise RuntimeError(f"Severe row mismatch in CPI: Excel={excel_cpi_count}, DB={db_cpi_count}")
+                    
+            print("[Anti-Leak Watchdog] Validation passed. Database buffers align with Excel source data.")
+            
+        except Exception as e_watchdog:
+            print(f"[Anti-Leak Watchdog Exception] {e_watchdog}")
+            raise RuntimeError(f"Database integrity verification failed: {e_watchdog}")
+        finally:
+            if os.path.exists(temp_val_path):
+                try: os.remove(temp_val_path)
+                except Exception: pass
+                
     return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_news, target_macro_html
 
 
@@ -994,6 +1053,24 @@ with col_left:
             </div>
             """, unsafe_allow_html=True)
             
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # V1.3.0.0 Stage 3: Dense Matrix Slices layout routing
+    st.markdown('<div class="obs-card" style="margin-top: 16px;">', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.05rem; margin-bottom:12px; font-weight: 700; letter-spacing:0.5px;">🗂️ 维度数据集矩阵视图 (Dense Matrix Slices)</h3>', unsafe_allow_html=True)
+    
+    matrix_tab1, matrix_tab2 = st.tabs(["📊 CPI 同比比较数据", "🔋 双焦日度价格明细"])
+    with matrix_tab1:
+        if not df_cpi_compare_filtered.empty:
+            st.dataframe(df_cpi_compare_filtered.sort_values(by="date", ascending=False), use_container_width=True, height=220)
+        else:
+            st.markdown('<p style="color:#64748b; font-size:0.82rem; margin:10px 0;">暂无可用数据</p>', unsafe_allow_html=True)
+            
+    with matrix_tab2:
+        if not df_coal_prices_filtered.empty:
+            st.dataframe(df_coal_prices_filtered.sort_values(by="date", ascending=False), use_container_width=True, height=220)
+        else:
+            st.markdown('<p style="color:#64748b; font-size:0.82rem; margin:10px 0;">暂无可用数据</p>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
