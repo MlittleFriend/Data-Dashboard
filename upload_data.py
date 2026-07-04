@@ -302,7 +302,8 @@ def import_dashboard_charts_to_db():
         food_sheet_name = None
         xls_sheets = pd.ExcelFile(excel_file).sheet_names
         for sn in xls_sheets:
-            if sn.strip() == "图6":
+            sn_str = str(sn).strip() if sn is not None else ""
+            if sn_str == "图6":
                 food_sheet_name = sn
                 break
         
@@ -316,6 +317,7 @@ def import_dashboard_charts_to_db():
             for col in ["fresh_vegetable", "egg", "fresh_fruit", "pork"]:
                 food_prices_df[col] = pd.to_numeric(food_prices_df[col], errors="coerce")
             food_prices_df = food_prices_df.dropna()
+            assert isinstance(food_prices_df, pd.DataFrame)
             food_prices_df = food_prices_df.sort_values(by="date", ascending=True).reset_index(drop=True)
             print(f"[Dashboard Parser] 食品分项价格解析成功: {len(food_prices_df)} 行有效数据")
         else:

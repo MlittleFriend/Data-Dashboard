@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-schema_aligner.py | 26630 表格动态监听与自适应语义对齐引擎 (V1.1.2.1)
+schema_aligner.py | 26630 表格动态监听与自适应语义对齐引擎 (V1.5.3.1)
 提供：
 1. 后台轮询变更监听器 (基于 SHA-256 与 mtime 静态对齐校验)
 2. 大模型语义弹性对齐层 (Schema Auto-mapping，支持 LLM 与启发式对齐规则兜底)
@@ -231,10 +231,8 @@ def map_columns_by_keywords(df, sheet_type):
             if not is_numeric_column(df, col):
                 continue
             # 检查前 10 行及列名本身
-            for cell_val in [str(col)] + list(df[col].head(10)):
-                if pd.isnull(cell_val):
-                    continue
-                cell_str = str(cell_val).lower().strip()
+            for cell_val in [str(col)] + [str(x) for x in df[col].head(10) if pd.notnull(x)]:
+                cell_str = cell_val.lower().strip()
                 for pat in patterns:
                     if re.search(pat, cell_str):
                         mappings[std_field] = col
@@ -254,10 +252,8 @@ def map_columns_by_keywords(df, sheet_type):
                     continue
                 for pat in patterns:
                     clean_pat = pat.replace(r".*", "").replace(r"(?!.*核心)", "")
-                    for cell_val in [str(col)] + list(df[col].head(5)):
-                        if pd.isnull(cell_val):
-                            continue
-                        sim = string_similarity(str(cell_val), clean_pat)
+                    for cell_val in [str(col)] + [str(x) for x in df[col].head(5) if pd.notnull(x)]:
+                        sim = string_similarity(cell_val, clean_pat)
                         if sim > max_sim:
                             max_sim = sim
                             best_col = col
@@ -727,13 +723,13 @@ def adaptive_llm_fallback_parser(excel_path: str, lock_path: str = "schema_lock.
             matched_jm = ""
             
             for col in df_coal.columns:
-                cell_vals = [str(col)] + [str(x) for x in df_coal[col].head(10)]
-                if any(re.search(r"单位|国家|日期|时间|date|time", str(v).lower()) for v in cell_vals):
-                    matched_date = str(col)
-                if any(re.search(r"动力煤|dlm|s009760051", str(v).lower()) for v in cell_vals):
-                    matched_dlm = str(col)
-                if any(re.search(r"焦煤|jm|s009760047", str(v).lower()) for v in cell_vals):
-                    matched_jm = str(col)
+                cell_vals = [col] + [str(x) for x in df_coal[col].head(10)]
+                if any(re.search(r"单位|国家|日期|时间|date|time", v.lower()) for v in cell_vals):
+                    matched_date = col
+                if any(re.search(r"动力煤|dlm|s009760051", v.lower()) for v in cell_vals):
+                    matched_dlm = col
+                if any(re.search(r"焦煤|jm|s009760047", v.lower()) for v in cell_vals):
+                    matched_jm = col
             
             if not matched_date and len(df_coal.columns) > 26:
                 matched_date = str(df_coal.columns[26])
@@ -757,11 +753,11 @@ def adaptive_llm_fallback_parser(excel_path: str, lock_path: str = "schema_lock.
             # V1.3.1.0: 限制扫描到 11 到 25 列，防范非国债/非中国本币指标干扰，且精确拦截环比与累计噪声
             scan_cols = list(df_cpi.columns)[11:25]
             for col in scan_cols:
-                cell_vals = [str(col)] + [str(x) for x in df_cpi[col].head(10)]
+                cell_vals = [col] + [str(x) for x in df_cpi[col].head(10)]
                 cell_text_lower = " ".join(cell_vals).lower()
                 
                 # 日期主键对齐
-                if any(re.search(r"单位|时间|日期|date|time", str(v).lower()) for v in cell_vals):
+                if any(re.search(r"单位|时间|日期|date|time", v.lower()) for v in cell_vals):
                     if "unnamed: 11" in str(col).lower():
                         matched_date = str(col)
                     elif not matched_date:
