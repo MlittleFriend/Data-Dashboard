@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-schema_aligner.py | 26630 表格动态监听与自适应语义对齐引擎 (V1.5.3.1)
+schema_aligner.py | 26630 表格动态监听与自适应语义对齐引擎 (V1.5.4.0)
 提供：
 1. 后台轮询变更监听器 (基于 SHA-256 与 mtime 静态对齐校验)
 2. 大模型语义弹性对齐层 (Schema Auto-mapping，支持 LLM 与启发式对齐规则兜底)
