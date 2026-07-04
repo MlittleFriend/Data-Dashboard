@@ -54,19 +54,22 @@ class GenericSkillGateway:
                 spec = importlib.util.spec_from_file_location(
                     module_name, module_path
                 )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                if spec is not None and spec.loader is not None:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
 
-                func = getattr(module, name, None)
-                if func and callable(func):
-                    self.toolbox[name] = func
-                    print(
-                        f"[Agent Skill Kernel] 成功注册外部技能: '{name}' (源模块: {module_name})"
-                    )
+                    func = getattr(module, name, None)
+                    if func and callable(func):
+                        self.toolbox[name] = func
+                        print(
+                            f"[Agent Skill Kernel] 成功注册外部技能: '{name}' (源模块: {module_name})"
+                        )
+                    else:
+                        print(
+                            f"[Agent Skill Kernel] 模块 {module_name} 中未找到函数 {name}"
+                        )
                 else:
-                    print(
-                        f"[Agent Skill Kernel] 模块 {module_name} 中未找到函数 {name}"
-                    )
+                    print(f"[Agent Skill Kernel] 无法获取模块 Spec 或 Loader: {module_path}")
             except Exception as e:
                 print(f"[Agent Skill Kernel] 加载技能 '{name}' 模块时出错: {e}")
 

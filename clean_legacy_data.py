@@ -9,7 +9,7 @@ import sys
 
 # 将标准输出编码设置为 UTF-8，避免 Windows 终端下中文/Emoji 显示乱码
 try:
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")  # pyrefly: ignore [missing-attribute]
 except Exception:
     pass
 

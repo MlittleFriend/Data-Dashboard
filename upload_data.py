@@ -2,7 +2,7 @@ import sys
 
 # 将标准输出编码设置为 UTF-8，避免 Windows 终端下中文显示乱码
 try:
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")  # pyrefly: ignore [missing-attribute]
 except Exception:
     pass
 
@@ -24,6 +24,7 @@ def import_excel_to_db():
     # Parse CPI Trend (图1，5)
     df1 = pd.read_excel(EXCEL_FILE, sheet_name="图1，5")
     trend_data = df1.iloc[6:, [34, 35]].copy()
+    assert isinstance(trend_data, pd.DataFrame)
     trend_data.columns = ["date", "cpi_yoy"]
 
     def parse_date(val):
@@ -44,6 +45,7 @@ def import_excel_to_db():
     df2 = pd.read_excel(EXCEL_FILE, sheet_name="图2")
     cols = [11, 13, 14, 15, 16, 17, 18, 19, 20]
     cat_data = df2.iloc[6:, cols].copy()
+    assert isinstance(cat_data, pd.DataFrame)
     cat_data.columns = ["date", "食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
 
     cat_data["date"] = cat_data["date"].apply(parse_date)
@@ -213,14 +215,14 @@ def import_dashboard_charts_to_db():
     
     cpi_compare_fallback = True
     coal_prices_fallback = True
-    cpi_compare_df = None
-    coal_prices_df = None
+    cpi_compare_df = pd.DataFrame(columns=["date", "cpi_yoy", "core_cpi_yoy"])
+    coal_prices_df = pd.DataFrame(columns=["date", "dlm_price", "jm_price"])
     
     try:
         wb = openpyxl.load_workbook(excel_file, data_only=True)
         if "DASHBOARD" in wb.sheetnames:
             ws = wb["DASHBOARD"]
-            for chart in ws._charts:
+            for chart in ws._charts:  # pyrefly: ignore [missing-attribute]
                 if not chart.series:
                     continue
                 first_series = chart.series[0]
@@ -230,17 +232,23 @@ def import_dashboard_charts_to_db():
                 
                 if "图1，5" in ref_formula:
                     print("[Dashboard Parser] 动态检测到 CPI 对比折线图数据源:", ref_formula)
-                    df1 = pd.read_excel(excel_file, sheet_name="图1，5")
-                    cpi_compare_df = df1.iloc[7:104, [11, 13, 14]].copy()
-                    cpi_compare_df.columns = ["date", "cpi_yoy", "core_cpi_yoy"]
-                    cpi_compare_fallback = False
+                    try:
+                        df1 = pd.read_excel(excel_file, sheet_name="图1，5")
+                        cpi_compare_df = df1.iloc[7:104, [11, 13, 14]].copy()
+                        cpi_compare_df.columns = ["date", "cpi_yoy", "core_cpi_yoy"]
+                        cpi_compare_fallback = False
+                    except Exception as parse_err:
+                        print(f"[Dashboard Parser] 动态解析 CPI 对比折线图失败: {parse_err}")
                 
                 elif "图3，4" in ref_formula:
                     print("[Dashboard Parser] 动态检测到煤炭价格折线图数据源:", ref_formula)
-                    df3 = pd.read_excel(excel_file, sheet_name="图3，4")
-                    coal_prices_df = df3.iloc[7:269, [26, 27, 28]].copy()
-                    coal_prices_df.columns = ["date", "dlm_price", "jm_price"]
-                    coal_prices_fallback = False
+                    try:
+                        df3 = pd.read_excel(excel_file, sheet_name="图3，4")
+                        coal_prices_df = df3.iloc[7:269, [26, 27, 28]].copy()
+                        coal_prices_df.columns = ["date", "dlm_price", "jm_price"]
+                        coal_prices_fallback = False
+                    except Exception as parse_err:
+                        print(f"[Dashboard Parser] 动态解析煤炭价格折线图失败: {parse_err}")
     except Exception as e:
         print(f"[Dashboard Parser] 动态解析 DASHBOARD 图表失败，将启用硬编码兜底解析: {e}")
         
@@ -255,10 +263,14 @@ def import_dashboard_charts_to_db():
 
     if cpi_compare_fallback:
         print("[Dashboard Parser] 启用 CPI 对比折线图兜底解析")
-        df1 = pd.read_excel(excel_file, sheet_name="图1，5")
-        cpi_compare_df = df1.iloc[7:104, [11, 13, 14]].copy()
-        cpi_compare_df.columns = ["date", "cpi_yoy", "core_cpi_yoy"]
+        try:
+            df1 = pd.read_excel(excel_file, sheet_name="图1，5")
+            cpi_compare_df = df1.iloc[7:104, [11, 13, 14]].copy()
+            cpi_compare_df.columns = ["date", "cpi_yoy", "core_cpi_yoy"]
+        except Exception as e:
+            print(f"[Dashboard Parser] CPI 兜底解析失败: {e}")
 
+    assert isinstance(cpi_compare_df, pd.DataFrame)
     cpi_compare_df["date"] = cpi_compare_df["date"].apply(parse_date)
     cpi_compare_df["cpi_yoy"] = pd.to_numeric(cpi_compare_df["cpi_yoy"], errors="coerce")
     cpi_compare_df["core_cpi_yoy"] = pd.to_numeric(cpi_compare_df["core_cpi_yoy"], errors="coerce")
@@ -267,15 +279,20 @@ def import_dashboard_charts_to_db():
 
     if coal_prices_fallback:
         print("[Dashboard Parser] 启用煤炭价格折线图兜底解析")
-        df3 = pd.read_excel(excel_file, sheet_name="图3，4")
-        coal_prices_df = df3.iloc[7:269, [26, 27, 28]].copy()
-        coal_prices_df.columns = ["date", "dlm_price", "jm_price"]
+        try:
+            df3 = pd.read_excel(excel_file, sheet_name="图3，4")
+            coal_prices_df = df3.iloc[7:269, [26, 27, 28]].copy()
+            coal_prices_df.columns = ["date", "dlm_price", "jm_price"]
+        except Exception as e:
+            print(f"[Dashboard Parser] 煤炭价格兜底解析失败: {e}")
 
+    assert isinstance(coal_prices_df, pd.DataFrame)
     coal_prices_df["date"] = coal_prices_df["date"].apply(parse_date)
     coal_prices_df["dlm_price"] = pd.to_numeric(coal_prices_df["dlm_price"], errors="coerce")
     coal_prices_df["jm_price"] = pd.to_numeric(coal_prices_df["jm_price"], errors="coerce")
     coal_prices_df = coal_prices_df.dropna()
     coal_prices_df = coal_prices_df[(coal_prices_df["dlm_price"] > 0) & (coal_prices_df["jm_price"] > 0)]
+    assert isinstance(coal_prices_df, pd.DataFrame)
     coal_prices_df = coal_prices_df.sort_values(by="date", ascending=True).reset_index(drop=True)
 
     # V1.4.2.0: 食品分项价格矩阵解析 (图6 工作表)

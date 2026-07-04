@@ -23,7 +23,7 @@ import requests
 
 # 标准输出 UTF-8 编码设置
 try:
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")  # pyrefly: ignore [missing-attribute]
 except Exception:
     pass
 
@@ -108,7 +108,7 @@ def string_similarity(s1, s2):
     return len(common) / max(len(s1), len(s2))
 
 
-def is_numeric_column(df, col, min_numeric_ratio=0.5):
+def is_numeric_column(df: pd.DataFrame, col, min_numeric_ratio=0.5):
     """
     检查列中非空单元格的数值化比例，排除主要是文本（元数据）或空列
     """
@@ -116,10 +116,14 @@ def is_numeric_column(df, col, min_numeric_ratio=0.5):
     if len(non_null_series) < 5:
         return False
     start_idx = min(10, len(non_null_series) // 2)
-    sub_series = non_null_series.iloc[start_idx:]
+    sub_series: pd.Series = non_null_series.iloc[start_idx:]
     if len(sub_series) == 0:
         return False
-    numeric_count = pd.to_numeric(sub_series, errors="coerce").notnull().sum()
+    converted = pd.to_numeric(sub_series, errors="coerce")
+    if isinstance(converted, pd.Series):
+        numeric_count = converted.notnull().sum()
+    else:
+        numeric_count = 1 if pd.notnull(converted) else 0
     ratio = numeric_count / len(sub_series)
     return ratio >= min_numeric_ratio
 
@@ -339,6 +343,7 @@ def process_sheet(excel_file, sheet_name, sheet_type):
     if sheet_type == "dashboard_coal_prices":
         extracted_df = extracted_df[(extracted_df["dlm_price"] > 0) & (extracted_df["jm_price"] > 0)]
         
+    assert isinstance(extracted_df, pd.DataFrame)
     extracted_df = extracted_df.sort_values(by="date", ascending=True).reset_index(drop=True)
     
     # Restrict chart timeline to a 10-year window (2016–2026)

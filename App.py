@@ -16,8 +16,8 @@ import schema_aligner
 from news_sanitizer import is_valid_url, sanitize_news_item, verify_semantic_integrity
 from upload_data import fetch_finance_news
 
-# 版本标识与前馈控制参数 V1.1.3.3
-VERSION = "V1.1.3.3"
+# 版本标识与前馈控制参数 V1.5.2.1
+VERSION = "V1.5.2.1"
 
 # 加载并初始化外部技能动态网关
 try:
@@ -491,7 +491,8 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
             y=1.02, 
             xanchor="right", 
             x=1,
-            bgcolor="rgba(0,0,0,0)"
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white")
         ),
         hovermode="x unified",
         hoverlabel=dict(
@@ -1091,6 +1092,7 @@ with col_left:
                 margin=dict(l=10, r=10, t=10, b=10),
                 hovermode="x",
                 hoverlabel=dict(bgcolor="rgba(10, 22, 47, 0.95)"),
+                legend=dict(font=dict(color="white")),
                 transition=dict(duration=800, easing="cubic-in-out")
             )
             fig_bar.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")

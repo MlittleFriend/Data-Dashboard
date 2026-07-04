@@ -1,0 +1,15 @@
+# pyrefly.toml
+
+# Specify the path to the virtual environment's interpreter
+python-interpreter-path = ".venv/Scripts/python.exe"
+
+# Force-feed the active site-packages search path directly into lookup registry
+site-package-path = [
+    ".venv/Lib/site-packages"
+]
+
+# Project files to include
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
