@@ -1038,7 +1038,7 @@ with kpi_col1:
     <div class="kpi-card" style="border-top-color: #00f0ff;">
         <div class="kpi-header-row">
             <span class="kpi-title">CPI 当月同比</span>
-            <a href="#inflation-charts" target="_self" class="kpi-link">📊 细化图表 ↗</a>
+            <a href="#cpi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_cpi:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_cpi):.2f}% (较上月)</div>
@@ -1052,7 +1052,7 @@ with kpi_col2:
     <div class="kpi-card" style="border-top-color: #ffb703;">
         <div class="kpi-header-row">
             <span class="kpi-title">核心 CPI 同比</span>
-            <a href="#inflation-charts" target="_self" class="kpi-link">📊 细化图表 ↗</a>
+            <a href="#cpi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_core:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_core):.2f}% (较上月)</div>
@@ -1066,7 +1066,7 @@ with kpi_col3:
     <div class="kpi-card" style="border-top-color: #ff2e93;">
         <div class="kpi-header-row">
             <span class="kpi-title">PPI 当月同比</span>
-            <a href="#inflation-charts" target="_self" class="kpi-link">📊 细化图表 ↗</a>
+            <a href="#ppi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_ppi_yoy:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_ppi_yoy):.2f}% (较上月)</div>
@@ -1080,7 +1080,7 @@ with kpi_col4:
     <div class="kpi-card" style="border-top-color: #a78bfa;">
         <div class="kpi-header-row">
             <span class="kpi-title">PPI 当月环比</span>
-            <a href="#inflation-charts" target="_self" class="kpi-link">📊 细化图表 ↗</a>
+            <a href="#ppi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_ppi_mom:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_ppi_mom):.2f}% (较上月)</div>
@@ -1100,7 +1100,7 @@ with kpi_col5:
     <div class="kpi-card" style="border-top-color: #38bdf8;">
         <div class="kpi-header-row">
             <span class="kpi-title">公共财政收入增速</span>
-            <a href="#fiscal-charts" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
+            <a href="#fiscal-rev-exp-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_fis_rev:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fis_rev):.2f}% (较上月)</div>
@@ -1114,7 +1114,7 @@ with kpi_col6:
     <div class="kpi-card" style="border-top-color: #10b981;">
         <div class="kpi-header-row">
             <span class="kpi-title">公共财政支出增速</span>
-            <a href="#fiscal-charts" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
+            <a href="#fiscal-rev-exp-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_fis_exp:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fis_exp):.2f}% (较上月)</div>
@@ -1128,7 +1128,7 @@ with kpi_col7:
     <div class="kpi-card" style="border-top-color: #f59e0b;">
         <div class="kpi-header-row">
             <span class="kpi-title">政府性基金收入增速</span>
-            <a href="#fiscal-charts" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
+            <a href="#fiscal-fund-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_fund_rev:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fund_rev):.2f}% (较上月)</div>
@@ -1142,7 +1142,7 @@ with kpi_col8:
     <div class="kpi-card" style="border-top-color: #ec4899;">
         <div class="kpi-header-row">
             <span class="kpi-title">政府性基金支出增速</span>
-            <a href="#fiscal-charts" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
+            <a href="#fiscal-fund-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_fund_exp:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fund_exp):.2f}% (较上月)</div>
@@ -1152,217 +1152,146 @@ with kpi_col8:
 st.markdown('<div style="margin-bottom: 16px;"></div>', unsafe_allow_html=True)
 
 
+
 # 8. 左右两栏网格布局重构 (Main Two-Column Grid Layout)
 col_left, col_right = st.columns([6.5, 3.5])
 
-# 左半侧主视窗：物价与大宗联动趋势 (Analysis Charts)
+# 左半侧主视窗：全量 26630 图表单页平铺展示 (Single Unified Visualizer Panel)
 with col_left:
     st.markdown('<div class="obs-card">', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.1rem; margin-bottom:12px; font-weight: 700; letter-spacing:0.5px;">📈 多维数据深度可视化分析舱</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.1rem; margin-bottom:16px; font-weight: 700; letter-spacing:0.5px;">📈 26630 宏观数据多维深度可视化舱</h3>', unsafe_allow_html=True)
 
-    # 页首跳转锚点 (Anchors for Top KPI Jump Links)
-    st.markdown('<div id="inflation-charts"></div><div id="fiscal-charts"></div>', unsafe_allow_html=True)
+    # ==================== 第一板块：通胀数据区 ====================
+    st.markdown('<div style="border-left: 3px solid #00f0ff; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#00f0ff; margin:0; font-size:1.0rem; font-weight:700;">🎯 通胀数据区（CPI 与 PPI 深度剖析）</h4></div>', unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["🎯 综合通胀与分类物价", "🏛️ 财政收支与基金预算", "🔋 黑色系双焦能源监测"])
+    # 1. CPI同比与核心CPI同比
+    st.markdown('<div id="cpi-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 CPI 综合与核心物价同比趋势走势 (自适应双Y轴)</p>", unsafe_allow_html=True)
+    if not df_inf_series_filtered.empty and "cpi_yoy" in df_inf_series_filtered.columns:
+        df_inf_display = df_inf_series_filtered.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
+        fig_cpi = render_dual_axis_line_chart(
+            df_inf_display,
+            "date",
+            ["CPI当月同比 (%)", "核心CPI当月同比 (%)"],
+            colors=["#00f0ff", "#ffb703"],
+            primary_y_title="同比 (%)"
+        )
+        st.plotly_chart(fig_cpi, use_container_width=True, config={'displayModeBar': False})
 
-    with tab1:
-        # A. CPI同比与核心CPI同比走势
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 CPI 综合与核心物价同比趋势走势 (自适应双Y轴分流)</p>", unsafe_allow_html=True)
-        if not df_inf_series_filtered.empty and "cpi_yoy" in df_inf_series_filtered.columns:
-            df_inf_display = df_inf_series_filtered.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
-            fig_cpi = render_dual_axis_line_chart(
-                df_inf_display,
-                "date",
-                ["CPI当月同比 (%)", "核心CPI当月同比 (%)"],
-                colors=["#00f0ff", "#ffb703"],
-                primary_y_title="同比 (%)"
-            )
-            st.plotly_chart(fig_cpi, use_container_width=True, config={'displayModeBar': False})
-        elif not df_cpi_compare_filtered.empty:
-            df_cpi_display = df_cpi_compare_filtered.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
-            fig_cpi = render_dual_axis_line_chart(
-                df_cpi_display,
-                "date",
-                ["CPI当月同比 (%)", "核心CPI当月同比 (%)"],
-                colors=["#00f0ff", "#ffb703"],
-                primary_y_title="同比 (%)"
-            )
-            st.plotly_chart(fig_cpi, use_container_width=True, config={'displayModeBar': False})
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-        st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+    # 2. PPI 同比与 PPI 环比走势对比
+    st.markdown('<div id="ppi-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 PPI 当月同比与环比变动趋势 (自适应双Y轴)</p>", unsafe_allow_html=True)
+    if not df_inf_series_filtered.empty and "ppi_yoy" in df_inf_series_filtered.columns:
+        df_ppi_display = df_inf_series_filtered.rename(columns={"ppi_yoy": "PPI当月同比 (%)", "ppi_mom": "PPI当月环比 (%)"})
+        fig_ppi = render_dual_axis_line_chart(
+            df_ppi_display,
+            "date",
+            ["PPI当月同比 (%)", "PPI当月环比 (%)"],
+            colors=["#ff2e93", "#a78bfa"],
+            primary_y_title="PPI同比 (%)",
+            secondary_y_title="PPI环比 (%)"
+        )
+        st.plotly_chart(fig_ppi, use_container_width=True, config={'displayModeBar': False})
 
-        # B. PPI 同比与 PPI 环比走势对比
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 PPI 当月同比与环比变动趋势 (自适应双Y轴分流)</p>", unsafe_allow_html=True)
-        if not df_inf_series_filtered.empty and "ppi_yoy" in df_inf_series_filtered.columns:
-            df_ppi_display = df_inf_series_filtered.rename(columns={"ppi_yoy": "PPI当月同比 (%)", "ppi_mom": "PPI当月环比 (%)"})
-            fig_ppi = render_dual_axis_line_chart(
-                df_ppi_display,
-                "date",
-                ["PPI当月同比 (%)", "PPI当月环比 (%)"],
-                colors=["#ff2e93", "#a78bfa"],
-                primary_y_title="PPI同比 (%)",
-                secondary_y_title="PPI环比 (%)"
-            )
-            st.plotly_chart(fig_ppi, use_container_width=True, config={'displayModeBar': False})
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-        st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+    # 3. PPI 生产资料与生活资料对比
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 PPI 生产资料与生活资料当月同比对比</p>", unsafe_allow_html=True)
+    if not df_inf_series_filtered.empty and "ppi_production_yoy" in df_inf_series_filtered.columns:
+        df_ppi_struct = df_inf_series_filtered.rename(columns={"ppi_production_yoy": "PPI生产资料同比 (%)", "ppi_life_yoy": "PPI生活资料同比 (%)"})
+        fig_ppi_s = render_dual_axis_line_chart(
+            df_ppi_struct,
+            "date",
+            ["PPI生产资料同比 (%)", "PPI生活资料同比 (%)"],
+            colors=["#10b981", "#fbbf24"],
+            primary_y_title="同比 (%)"
+        )
+        st.plotly_chart(fig_ppi_s, use_container_width=True, config={'displayModeBar': False})
 
-        # C. 核心分项当月同比柱状图
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 物价核心分项最新单月增速对比 (CPI分项剖析)</p>", unsafe_allow_html=True)
-        if not df_cat.empty:
-            latest_row = df_cat.iloc[-1]
-            categories = ["食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
-            values = [float(latest_row[cat]) if cat in latest_row and pd.notna(latest_row[cat]) else 0.0 for cat in categories]
+    st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
 
-            fig_bar = go.Figure()
-            fig_bar.add_trace(go.Bar(
-                x=categories,
-                y=values,
-                name="同比增速 (%)",
-                marker=dict(
-                    color="rgba(0, 240, 255, 0.75)",
-                    line=dict(color="#00f0ff", width=1.5)
-                ),
-                text=[f"{val:+.1f}%" for val in values],
-                textposition="outside",
-                textfont=dict(color="#ffffff", size=9)
-            ))
-            fig_bar.update_layout(
-                template="plotly_dark",
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                height=320,
-                margin=dict(l=10, r=10, t=10, b=10),
-                hovermode="x",
-                hoverlabel=dict(bgcolor="rgba(10, 22, 47, 0.95)"),
-                legend=dict(font=dict(color="white")),
-                transition=dict(duration=800, easing="cubic-in-out")
-            )
-            fig_bar.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
-            fig_bar.update_yaxes(showgrid=True, gridcolor="rgba(255, 255, 255, 0.03)", zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
-            st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+    # ==================== 第二板块：财政数据区 ====================
+    st.markdown('<div style="border-left: 3px solid #38bdf8; padding-left: 10px; margin-bottom: 14px; margin-top: 12px;"><h4 style="color:#38bdf8; margin:0; font-size:1.0rem; font-weight:700;">🏛️ 财政数据区（公共财政与基金预算监控）</h4></div>', unsafe_allow_html=True)
 
-        st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+    # 4. 全国公共财政收入与支出同比增速对比
+    st.markdown('<div id="fiscal-rev-exp-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 全国公共财政收入与支出同比增速走势 (自适应双Y轴)</p>", unsafe_allow_html=True)
+    if not df_fis_series_filtered.empty and "fiscal_revenue_yoy" in df_fis_series_filtered.columns:
+        df_fis_rev_exp = df_fis_series_filtered.rename(columns={
+            "fiscal_revenue_yoy": "公共财政收入增速 (%)",
+            "fiscal_expenditure_yoy": "公共财政支出增速 (%)"
+        })
+        fig_fis_1 = render_dual_axis_line_chart(
+            df_fis_rev_exp,
+            "date",
+            ["公共财政收入增速 (%)", "公共财政支出增速 (%)"],
+            colors=["#00f0ff", "#10b981"],
+            primary_y_title="同比增速 (%)"
+        )
+        st.plotly_chart(fig_fis_1, use_container_width=True, config={'displayModeBar': False})
 
-        # D. 主要食品分项微观物价价格走势
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 主要食品分项微观物价价格走势 (自适应双Y轴分流)</p>", unsafe_allow_html=True)
-        if not df_food_prices_filtered.empty:
-            df_food_display = df_food_prices_filtered.rename(columns={
-                "fresh_vegetable": "鲜菜 (元/公斤)",
-                "egg": "鸡蛋 (元/公斤)",
-                "fresh_fruit": "鲜果 (元/公斤)",
-                "pork": "猪肉 (元/公斤)"
-            })
-            fig_food = render_dual_axis_line_chart(
-                df_food_display,
-                "date",
-                ["鲜菜 (元/公斤)", "鸡蛋 (元/公斤)", "鲜果 (元/公斤)", "猪肉 (元/公斤)"],
-                colors=["#10b981", "#ffb703", "#00f0ff", "#ff2e93"],
-                primary_y_title="元/公斤",
-                secondary_y_title="猪肉 (元/公斤)"
-            )
-            st.plotly_chart(fig_food, use_container_width=True, config={'displayModeBar': False})
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-    with tab2:
-        # A. 全国公共财政收入与支出同比增速对比
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 全国公共财政收入与支出同比增速走势 (自适应双Y轴分流)</p>", unsafe_allow_html=True)
-        if not df_fis_series_filtered.empty and "fiscal_revenue_yoy" in df_fis_series_filtered.columns:
-            df_fis_rev_exp = df_fis_series_filtered.rename(columns={
-                "fiscal_revenue_yoy": "公共财政收入增速 (%)",
-                "fiscal_expenditure_yoy": "公共财政支出增速 (%)"
-            })
-            fig_fis_1 = render_dual_axis_line_chart(
-                df_fis_rev_exp,
-                "date",
-                ["公共财政收入增速 (%)", "公共财政支出增速 (%)"],
-                colors=["#00f0ff", "#10b981"],
-                primary_y_title="同比增速 (%)"
-            )
-            st.plotly_chart(fig_fis_1, use_container_width=True, config={'displayModeBar': False})
-        else:
-            st.markdown("""
-            <div style="background: rgba(255, 59, 48, 0.15); border: 2px solid #ff3b30; border-radius: 8px; padding: 20px; text-align: center; color: #ff6b6b; font-weight: 700; margin: 15px 0;">
-                ⚠️ 未匹配到有效的财政数据时序，请检查上游数据库 `dashboard_fiscal_series`！
-            </div>
-            """, unsafe_allow_html=True)
+    # 5. 中央与地方财政收支结构同比增速
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 中央与地方财政收支结构同比增速对比</p>", unsafe_allow_html=True)
+    if not df_fis_series_filtered.empty and "central_revenue_yoy" in df_fis_series_filtered.columns:
+        df_fis_struct = df_fis_series_filtered.rename(columns={
+            "central_revenue_yoy": "中央财政收入增速 (%)",
+            "local_revenue_yoy": "地方财政收入增速 (%)",
+            "central_expenditure_yoy": "中央财政支出增速 (%)",
+            "local_expenditure_yoy": "地方财政支出增速 (%)"
+        })
+        fig_fis_2 = render_dual_axis_line_chart(
+            df_fis_struct,
+            "date",
+            ["中央财政收入增速 (%)", "地方财政收入增速 (%)", "中央财政支出增速 (%)", "地方财政支出增速 (%)"],
+            colors=["#38bdf8", "#818cf8", "#fbbf24", "#f43f5e"],
+            primary_y_title="同比增速 (%)"
+        )
+        st.plotly_chart(fig_fis_2, use_container_width=True, config={'displayModeBar': False})
 
-        st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-        # B. 中央与地方财政收支结构同比增速
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 中央与地方财政收支结构同比增速对比</p>", unsafe_allow_html=True)
-        if not df_fis_series_filtered.empty and "central_revenue_yoy" in df_fis_series_filtered.columns:
-            df_fis_struct = df_fis_series_filtered.rename(columns={
-                "central_revenue_yoy": "中央财政收入增速 (%)",
-                "local_revenue_yoy": "地方财政收入增速 (%)",
-                "central_expenditure_yoy": "中央财政支出增速 (%)",
-                "local_expenditure_yoy": "地方财政支出增速 (%)"
-            })
-            fig_fis_2 = render_dual_axis_line_chart(
-                df_fis_struct,
-                "date",
-                ["中央财政收入增速 (%)", "地方财政收入增速 (%)", "中央财政支出增速 (%)", "地方财政支出增速 (%)"],
-                colors=["#38bdf8", "#818cf8", "#fbbf24", "#f43f5e"],
-                primary_y_title="同比增速 (%)"
-            )
-            st.plotly_chart(fig_fis_2, use_container_width=True, config={'displayModeBar': False})
+    # 6. 税收收入 vs 非税收入增速对比
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 税收收入与非税收入增速对比</p>", unsafe_allow_html=True)
+    if not df_fis_series_filtered.empty and "tax_revenue_yoy" in df_fis_series_filtered.columns:
+        df_tax_nontax = df_fis_series_filtered.rename(columns={
+            "tax_revenue_yoy": "税收收入增速 (%)",
+            "nontax_revenue_yoy": "非税收入增速 (%)"
+        })
+        fig_tax = render_dual_axis_line_chart(
+            df_tax_nontax,
+            "date",
+            ["税收收入增速 (%)", "非税收入增速 (%)"],
+            colors=["#10b981", "#f59e0b"],
+            primary_y_title="同比增速 (%)"
+        )
+        st.plotly_chart(fig_tax, use_container_width=True, config={'displayModeBar': False})
 
-        st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-        # C. 税收收入 vs 非税收入增速对比
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 税收收入与非税收入增速对比</p>", unsafe_allow_html=True)
-        if not df_fis_series_filtered.empty and "tax_revenue_yoy" in df_fis_series_filtered.columns:
-            df_tax_nontax = df_fis_series_filtered.rename(columns={
-                "tax_revenue_yoy": "税收收入增速 (%)",
-                "nontax_revenue_yoy": "非税收入增速 (%)"
-            })
-            fig_tax = render_dual_axis_line_chart(
-                df_tax_nontax,
-                "date",
-                ["税收收入增速 (%)", "非税收入增速 (%)"],
-                colors=["#10b981", "#f59e0b"],
-                primary_y_title="同比增速 (%)"
-            )
-            st.plotly_chart(fig_tax, use_container_width=True, config={'displayModeBar': False})
-
-        st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
-
-        # D. 政府性基金收支及国有土地使用权出让收入增速走势
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 政府性基金收支及土地出让金增速走势</p>", unsafe_allow_html=True)
-        if not df_fis_series_filtered.empty and "fund_revenue_yoy" in df_fis_series_filtered.columns:
-            df_fund = df_fis_series_filtered.rename(columns={
-                "fund_revenue_yoy": "政府性基金收入增速 (%)",
-                "land_concession_yoy": "国有土地使用权出让收入增速 (%)",
-                "fund_expenditure_yoy": "政府性基金支出增速 (%)"
-            })
-            fig_fund = render_dual_axis_line_chart(
-                df_fund,
-                "date",
-                ["政府性基金收入增速 (%)", "国有土地使用权出让收入增速 (%)", "政府性基金支出增速 (%)"],
-                colors=["#a78bfa", "#ec4899", "#06b6d4"],
-                primary_y_title="同比增速 (%)"
-            )
-            st.plotly_chart(fig_fund, use_container_width=True, config={'displayModeBar': False})
-
-    with tab3:
-        # C. 动力煤与焦煤现货价格对比
-        st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 港口动力煤现货与炼焦煤均价日度联动曲线 (自适应聚类双轴)</p>", unsafe_allow_html=True)
-        if not df_coal_prices_filtered.empty:
-            df_coal_display = df_coal_prices_filtered.rename(columns={"jm_price": "焦煤价格 (元/吨)", "dlm_price": "动力煤价格 (元/吨)"})
-            fig_coal = render_dual_axis_line_chart(
-                df_coal_display,
-                "date",
-                ["焦煤价格 (元/吨)", "动力煤价格 (元/吨)"],
-                colors=["#a78bfa", "#10b981"]
-            )
-            st.plotly_chart(fig_coal, use_container_width=True, config={'displayModeBar': False})
-        else:
-            st.markdown("""
-            <div style="background: rgba(255, 59, 48, 0.15); border: 2px solid #ff3b30; border-radius: 8px; padding: 20px; text-align: center; color: #ff6b6b; font-weight: 700; margin: 15px 0;">
-                ⚠️ 26630 异常断流：未匹配到有效的煤炭双焦监测时序，请检查上游格式！
-            </div>
-            """, unsafe_allow_html=True)
+    # 7. 政府性基金收支及国有土地使用权出让收入增速走势
+    st.markdown('<div id="fiscal-fund-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 政府性基金收支及土地出让金增速走势</p>", unsafe_allow_html=True)
+    if not df_fis_series_filtered.empty and "fund_revenue_yoy" in df_fis_series_filtered.columns:
+        df_fund = df_fis_series_filtered.rename(columns={
+            "fund_revenue_yoy": "政府性基金收入增速 (%)",
+            "land_concession_yoy": "国有土地使用权出让收入增速 (%)",
+            "fund_expenditure_yoy": "政府性基金支出增速 (%)"
+        })
+        fig_fund = render_dual_axis_line_chart(
+            df_fund,
+            "date",
+            ["政府性基金收入增速 (%)", "国有土地使用权出让收入增速 (%)", "政府性基金支出增速 (%)"],
+            colors=["#a78bfa", "#ec4899", "#06b6d4"],
+            primary_y_title="同比增速 (%)"
+        )
+        st.plotly_chart(fig_fund, use_container_width=True, config={'displayModeBar': False})
 
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
