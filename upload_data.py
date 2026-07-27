@@ -127,14 +127,10 @@ def fetch_wechat_articles():
             is_irrelevant = any(k in block for k in ["纪委监委", "商丘", "辞去", "副主席", "跳槽", "CFO", "新希望"])
 
             if is_chenxing_macro and not is_irrelevant:
-                clean_title = title
-                if not clean_title.startswith("陈兴：") and not clean_title.startswith("【") and not "陈兴" in clean_title:
-                    clean_title = f"陈兴：{clean_title}"
-                
                 articles.append({
                     "id": len(articles) + 1,
                     "publish_time": pub_time,
-                    "content": clean_title,
+                    "content": title,  # 保持 100% 原始公众号文章标题，不做任何修剪或前缀修改
                     "url": url,
                 })
         
@@ -152,12 +148,13 @@ def fetch_wechat_articles():
         ("2026-07-05", "陈兴：全球储蓄——由过剩到短缺？", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
         ("2026-06-14", "陈兴：没了点阵图，市场如何反应？", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q"),
         ("2026-06-13", "陈兴：M1同比何以反弹？——2026年5月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
-        ("2025-04-22", "陈兴：深度 | 特朗普怎样对医药“动刀”？——“特朗普经济学”系列", "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"),
-        ("2024-11-11", "陈兴：深度 | 谁会是特朗普的新助手？——美国大选深度观察", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
-        ("2024-09-25", "陈兴：国新办就金融支持经济高质量发展有关情况举行发布会要点", "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ"),
-        ("2024-07-15", "陈兴：一颗子弹，几多出口？——特朗普遇刺事件解读", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q")
+        ("2025-04-22", "深度 | 特朗普怎样对医药“动刀”？—— “特朗普经济学”系列之十四【陈兴团队·财通宏观】", "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"),
+        ("2024-11-11", "深度 | 谁会是特朗普的新助手？——美国大选深度观察之六【财通宏观•陈兴团队】", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
+        ("2024-09-25", "【划重点】国新办就金融支持经济高质量发展有关情况举行新闻发布会要点【财通宏观 陈兴团队】", "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ"),
+        ("2024-07-15", "一颗子弹，几多出口？——特朗普遇刺事件解读【财通宏观•陈兴团队】", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q")
     ]
     return [{"id": i+1, "publish_time": dt, "content": title, "url": u} for i, (dt, title, u) in enumerate(fallback_urls)]
+
 
 
 def generate_and_save_macro_analysis():
