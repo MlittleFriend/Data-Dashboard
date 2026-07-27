@@ -1,4 +1,6 @@
 import sys
+import os
+import json
 
 # 将标准输出编码设置为 UTF-8，避免 Windows 终端下中文显示乱码
 try:
@@ -433,6 +435,116 @@ def import_inflation_and_fiscal_to_db():
         print(f"[Database] 解析通胀与财政数据区失败: {e}")
 
 
+def import_excel_embedded_charts_to_db(excel_file="26630.xlsx"):
+    """
+    自动抽取 26630.xlsx 首页中的所有 Excel 原生嵌入图表 (BarChart / LineChart 等)
+    并将图表标题、分类、数值序列保存至 SQLite 数据库 dashboard_embedded_charts
+    """
+    if not os.path.exists(excel_file):
+        return
+
+    try:
+        wb = openpyxl.load_workbook(excel_file, data_only=True)
+        ws = wb.active
+
+        extracted_charts = []
+        for i, c in enumerate(ws._charts):
+            title_text = f"Chart {i+1}"
+            if c.title:
+                try:
+                    if hasattr(c.title, "tx") and c.title.tx and c.title.tx.rich:
+                        txt = ""
+                        for p in c.title.tx.rich.p:
+                            for r in p.r:
+                                txt += r.t
+                        if txt: title_text = txt
+                    elif isinstance(c.title, str):
+                        title_text = c.title
+                except Exception:
+                    pass
+            
+            title_text = title_text.strip()
+            chart_type = c.__class__.__name__
+
+            series_data = []
+            for s_idx, series in enumerate(c.series):
+                cat_vals = []
+                if hasattr(series, "cat") and series.cat:
+                    if hasattr(series.cat, "strRef") and series.cat.strRef and series.cat.strRef.strCache:
+                        cat_vals = [str(pt.v).strip() for pt in series.cat.strRef.strCache.pt if pt.v is not None]
+                    elif hasattr(series.cat, "numRef") and series.cat.numRef and series.cat.numRef.numCache:
+                        for pt in series.cat.numRef.numCache.pt:
+                            if pt.v is not None:
+                                val = pt.v
+                                if isinstance(val, (int, float)) and val > 40000 and val < 50000:
+                                    try:
+                                        dt = pd.to_datetime(val - 25569, unit="D")
+                                        val = dt.strftime("%Y-%m")
+                                    except Exception:
+                                        pass
+                                cat_vals.append(str(val))
+
+                num_vals = []
+                if hasattr(series, "val") and series.val:
+                    if hasattr(series.val, "numRef") and series.val.numRef and series.val.numRef.numCache:
+                        for pt in series.val.numRef.numCache.pt:
+                            try:
+                                num_vals.append(float(pt.v) if pt.v is not None else 0.0)
+                            except Exception:
+                                num_vals.append(0.0)
+                    elif hasattr(series.val, "strRef") and series.val.strRef and series.val.strRef.strCache:
+                        for pt in series.val.strRef.strCache.pt:
+                            try:
+                                num_vals.append(float(pt.v) if pt.v is not None else 0.0)
+                            except Exception:
+                                num_vals.append(0.0)
+
+                stitle = f"Series {s_idx+1}"
+                if hasattr(series, "title") and series.title:
+                    if hasattr(series.title, "v") and series.title.v:
+                        stitle = str(series.title.v).strip()
+                    elif hasattr(series.title, "strRef") and series.title.strRef and series.title.strRef.strCache:
+                        pts = series.title.strRef.strCache.pt
+                        if pts and pts[0].v is not None:
+                            stitle = str(pts[0].v).strip()
+
+                if stitle.isdigit() and int(stitle) > 40000:
+                    try:
+                        dt = pd.to_datetime(int(stitle) - 25569, unit="D")
+                        stitle = dt.strftime("%Y-%m")
+                    except Exception:
+                        pass
+
+                series_data.append({
+                    "series_title": stitle,
+                    "categories": cat_vals,
+                    "values": num_vals
+                })
+
+            extracted_charts.append({
+                "chart_id": i + 1,
+                "title": title_text,
+                "type": chart_type,
+                "series": series_data
+            })
+
+        conn = sqlite3.connect(DB_NAME)
+        records = []
+        for ch in extracted_charts:
+            records.append({
+                "chart_id": ch["chart_id"],
+                "chart_title": ch["title"],
+                "chart_type": ch["type"],
+                "chart_json": json.dumps(ch, ensure_ascii=False)
+            })
+        df_embedded = pd.DataFrame(records)
+        df_embedded.to_sql("dashboard_embedded_charts", conn, if_exists="replace", index=False)
+        conn.close()
+        print(f"[Database] 成功从 {excel_file} 提取并保存 {len(extracted_charts)} 个原生嵌入图表至 SQLite (dashboard_embedded_charts)！")
+    except Exception as e:
+        print(f"[Database] 提取 Excel 嵌入图表失败: {e}")
+
+
 def main():
     print("=" * 50)
     print("🚀 开始执行全自动数据加工处理流水线...")
@@ -440,6 +552,7 @@ def main():
     import_excel_to_db()
     import_dashboard_charts_to_db()
     import_inflation_and_fiscal_to_db()
+    import_excel_embedded_charts_to_db()
 
     # 抓取并同步顶部滚动快讯
     news_records = fetch_finance_news(limit=5)
@@ -452,4 +565,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()
+

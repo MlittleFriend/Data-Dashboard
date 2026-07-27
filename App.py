@@ -540,6 +540,74 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
     return fig
 
 
+def render_embedded_chart_by_id(df_embedded, cid):
+    if df_embedded.empty or "chart_id" not in df_embedded.columns:
+        return None
+    sub = df_embedded[df_embedded["chart_id"] == cid]
+    if sub.empty:
+        return None
+    row = sub.iloc[0]
+    try:
+        cdict = json.loads(row["chart_json"])
+    except Exception:
+        return None
+
+    title = cdict.get("title", "")
+    series_list = cdict.get("series", [])
+
+    fig = go.Figure()
+    colors = [
+        "#00f0ff", "#ffb703", "#ff2e93", "#10b981", "#a78bfa",
+        "#38bdf8", "#fbbf24", "#f43f5e", "#818cf8", "#06b6d4"
+    ]
+
+    is_stacked = "贡献拆分" in title or "拆分" in title
+
+    for s_idx, series in enumerate(series_list):
+        stitle = series.get("series_title", f"Series {s_idx+1}")
+        cats = series.get("categories", [])
+        vals = series.get("values", [])
+
+        color = colors[s_idx % len(colors)]
+
+        if is_stacked:
+            fig.add_trace(go.Bar(
+                x=cats,
+                y=vals,
+                name=stitle,
+                marker=dict(color=color)
+            ))
+        else:
+            fig.add_trace(go.Bar(
+                x=cats,
+                y=vals,
+                name=stitle,
+                marker=dict(color=color),
+                text=[f"{v:+.1f}%" if isinstance(v, (int, float)) and abs(v) < 200 else str(v) for v in vals],
+                textposition="auto",
+                textfont=dict(color="#ffffff", size=9)
+            ))
+
+    barmode = "stack" if is_stacked else "group"
+
+    fig.update_layout(
+        title=dict(text=f"📊 {title}", font=dict(color="#00f0ff", size=12)),
+        template="plotly_dark",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        height=340,
+        margin=dict(l=10, r=10, t=35, b=10),
+        barmode=barmode,
+        hovermode="x unified" if is_stacked else "x",
+        hoverlabel=dict(bgcolor="rgba(10, 22, 47, 0.95)"),
+        legend=dict(font=dict(color="white", size=9), orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(255, 255, 255, 0.03)", zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
+
+    return fig
+
+
 def load_listener_status():
     try:
         conn = sqlite3.connect("my_data.db", timeout=60.0)
@@ -652,6 +720,12 @@ def load_data(current_date_str):
     except Exception:
         df_deltas = pd.DataFrame()
 
+    # 原生 Excel 嵌入图表提取加载
+    try:
+        df_embedded_charts = pd.read_sql_query("SELECT * FROM dashboard_embedded_charts", conn)
+    except Exception:
+        df_embedded_charts = pd.DataFrame()
+
     # 2.2 顶部新浪 7x24 实时快讯
     try:
         df_news = pd.read_sql_query(
@@ -690,7 +764,8 @@ def load_data(current_date_str):
     if not df_fis_series.empty and "date" in df_fis_series.columns:
         df_fis_series = df_fis_series[df_fis_series["date"] >= limit_date]
 
-    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_deltas
+    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_deltas, df_embedded_charts
+
 
 
 
@@ -847,7 +922,8 @@ except Exception as e:
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
-df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_deltas = load_data(today_str)
+df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_deltas, df_embedded_charts = load_data(today_str)
+
 
 
 # 5. 侧边栏/控制面板 (Sidebar Control Panel)
@@ -1159,12 +1235,12 @@ col_left, col_right = st.columns([6.5, 3.5])
 # 左半侧主视窗：全量 26630 图表单页平铺展示 (Single Unified Visualizer Panel)
 with col_left:
     st.markdown('<div class="obs-card">', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.1rem; margin-bottom:16px; font-weight: 700; letter-spacing:0.5px;">📈 26630 宏观数据多维深度可视化舱</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.1rem; margin-bottom:16px; font-weight: 700; letter-spacing:0.5px;">📈 26630 宏观数据全量深度可视化舱</h3>', unsafe_allow_html=True)
 
     # ==================== 第一板块：通胀数据区 ====================
     st.markdown('<div style="border-left: 3px solid #00f0ff; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#00f0ff; margin:0; font-size:1.0rem; font-weight:700;">🎯 通胀数据区（CPI 与 PPI 深度剖析）</h4></div>', unsafe_allow_html=True)
 
-    # 1. CPI同比与核心CPI同比
+    # 1. CPI 综合与核心物价同比趋势走势 (Line)
     st.markdown('<div id="cpi-chart"></div>', unsafe_allow_html=True)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 CPI 综合与核心物价同比趋势走势 (自适应双Y轴)</p>", unsafe_allow_html=True)
     if not df_inf_series_filtered.empty and "cpi_yoy" in df_inf_series_filtered.columns:
@@ -1180,7 +1256,31 @@ with col_left:
 
     st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-    # 2. PPI 同比与 PPI 环比走势对比
+    # 2. CPI 环比 (Chart #3)
+    fig_3 = render_embedded_chart_by_id(df_embedded_charts, 3)
+    if fig_3:
+        st.plotly_chart(fig_3, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 3. CPI 食品分项环比 (Chart #4)
+    fig_4 = render_embedded_chart_by_id(df_embedded_charts, 4)
+    if fig_4:
+        st.plotly_chart(fig_4, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 4. CPI 环比贡献拆分 (Chart #1)
+    fig_1 = render_embedded_chart_by_id(df_embedded_charts, 1)
+    if fig_1:
+        st.plotly_chart(fig_1, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 5. CPI 同比贡献拆分 (Chart #2)
+    fig_2 = render_embedded_chart_by_id(df_embedded_charts, 2)
+    if fig_2:
+        st.plotly_chart(fig_2, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 6. PPI 当月同比与环比变动趋势 (Line)
     st.markdown('<div id="ppi-chart"></div>', unsafe_allow_html=True)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 PPI 当月同比与环比变动趋势 (自适应双Y轴)</p>", unsafe_allow_html=True)
     if not df_inf_series_filtered.empty and "ppi_yoy" in df_inf_series_filtered.columns:
@@ -1197,7 +1297,7 @@ with col_left:
 
     st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-    # 3. PPI 生产资料与生活资料对比
+    # 7. PPI 生产资料与生活资料当月同比对比 (Line)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 PPI 生产资料与生活资料当月同比对比</p>", unsafe_allow_html=True)
     if not df_inf_series_filtered.empty and "ppi_production_yoy" in df_inf_series_filtered.columns:
         df_ppi_struct = df_inf_series_filtered.rename(columns={"ppi_production_yoy": "PPI生产资料同比 (%)", "ppi_life_yoy": "PPI生活资料同比 (%)"})
@@ -1210,12 +1310,38 @@ with col_left:
         )
         st.plotly_chart(fig_ppi_s, use_container_width=True, config={'displayModeBar': False})
 
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 8. PPI 生产资料环比 (Chart #5)
+    fig_5 = render_embedded_chart_by_id(df_embedded_charts, 5)
+    if fig_5:
+        st.plotly_chart(fig_5, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 9. PPI 生活资料环比 (Chart #6)
+    fig_6 = render_embedded_chart_by_id(df_embedded_charts, 6)
+    if fig_6:
+        st.plotly_chart(fig_6, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 10. PPI 同比贡献拆分 (Chart #7)
+    fig_7 = render_embedded_chart_by_id(df_embedded_charts, 7)
+    if fig_7:
+        st.plotly_chart(fig_7, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 11. PPI 环比贡献拆分 (Chart #8)
+    fig_8 = render_embedded_chart_by_id(df_embedded_charts, 8)
+    if fig_8:
+        st.plotly_chart(fig_8, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
     st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
 
     # ==================== 第二板块：财政数据区 ====================
     st.markdown('<div style="border-left: 3px solid #38bdf8; padding-left: 10px; margin-bottom: 14px; margin-top: 12px;"><h4 style="color:#38bdf8; margin:0; font-size:1.0rem; font-weight:700;">🏛️ 财政数据区（公共财政与基金预算监控）</h4></div>', unsafe_allow_html=True)
 
-    # 4. 全国公共财政收入与支出同比增速对比
+    # 12. 全国公共财政收入与支出同比增速对比 (Line)
     st.markdown('<div id="fiscal-rev-exp-chart"></div>', unsafe_allow_html=True)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 全国公共财政收入与支出同比增速走势 (自适应双Y轴)</p>", unsafe_allow_html=True)
     if not df_fis_series_filtered.empty and "fiscal_revenue_yoy" in df_fis_series_filtered.columns:
@@ -1234,7 +1360,19 @@ with col_left:
 
     st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-    # 5. 中央与地方财政收支结构同比增速
+    # 13. 主要税种当月同比增速 (Chart #11)
+    fig_11 = render_embedded_chart_by_id(df_embedded_charts, 11)
+    if fig_11:
+        st.plotly_chart(fig_11, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 14. 各分项支出当月同比增速 (Chart #12)
+    fig_12 = render_embedded_chart_by_id(df_embedded_charts, 12)
+    if fig_12:
+        st.plotly_chart(fig_12, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 15. 中央与地方财政收支结构同比增速 (Line)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 中央与地方财政收支结构同比增速对比</p>", unsafe_allow_html=True)
     if not df_fis_series_filtered.empty and "central_revenue_yoy" in df_fis_series_filtered.columns:
         df_fis_struct = df_fis_series_filtered.rename(columns={
@@ -1254,7 +1392,7 @@ with col_left:
 
     st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-    # 6. 税收收入 vs 非税收入增速对比
+    # 16. 税收收入 vs 非税收入增速对比 (Line)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 税收收入与非税收入增速对比</p>", unsafe_allow_html=True)
     if not df_fis_series_filtered.empty and "tax_revenue_yoy" in df_fis_series_filtered.columns:
         df_tax_nontax = df_fis_series_filtered.rename(columns={
@@ -1272,7 +1410,13 @@ with col_left:
 
     st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-    # 7. 政府性基金收支及国有土地使用权出让收入增速走势
+    # 17. 历年 6 月狭义财政收支进度 (Chart #9)
+    fig_9 = render_embedded_chart_by_id(df_embedded_charts, 9)
+    if fig_9:
+        st.plotly_chart(fig_9, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 18. 政府性基金收支及国有土地使用权出让收入增速走势 (Line)
     st.markdown('<div id="fiscal-fund-chart"></div>', unsafe_allow_html=True)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 政府性基金收支及土地出让金增速走势</p>", unsafe_allow_html=True)
     if not df_fis_series_filtered.empty and "fund_revenue_yoy" in df_fis_series_filtered.columns:
@@ -1290,7 +1434,15 @@ with col_left:
         )
         st.plotly_chart(fig_fund, use_container_width=True, config={'displayModeBar': False})
 
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 19. 历年 6 月政府性基金收支进度 (Chart #10)
+    fig_10 = render_embedded_chart_by_id(df_embedded_charts, 10)
+    if fig_10:
+        st.plotly_chart(fig_10, use_container_width=True, config={'displayModeBar': False})
+
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
