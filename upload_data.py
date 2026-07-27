@@ -127,10 +127,11 @@ def fetch_wechat_articles():
             is_irrelevant = any(k in block for k in ["纪委监委", "商丘", "辞去", "副主席", "跳槽", "CFO", "新希望"])
 
             if is_chenxing_macro and not is_irrelevant:
+                clean_title = re.sub(r"^(陈兴[：:]\s*)", "", title).strip()
                 articles.append({
                     "id": len(articles) + 1,
                     "publish_time": pub_time,
-                    "content": title,  # 保持 100% 原始公众号文章标题，不做任何修剪或前缀修改
+                    "content": clean_title,  # 纯净标题（剥离 陈兴： 前缀）
                     "url": url,
                 })
         
@@ -142,18 +143,19 @@ def fetch_wechat_articles():
 
     # Fallback default 10 static links if offline
     fallback_urls = [
-        ("2026-07-19", "陈兴：韩国央行转向加息", "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ"),
-        ("2026-07-16", "陈兴：信用降温趋势延续——2026年6月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
-        ("2026-07-12", "陈兴：美国服务业价格压力缓解", "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"),
-        ("2026-07-05", "陈兴：全球储蓄——由过剩到短缺？", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
-        ("2026-06-14", "陈兴：没了点阵图，市场如何反应？", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q"),
-        ("2026-06-13", "陈兴：M1同比何以反弹？——2026年5月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
+        ("2026-07-19", "韩国央行转向加息", "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ"),
+        ("2026-07-16", "信用降温趋势延续——2026年6月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
+        ("2026-07-12", "美国服务业价格压力缓解", "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"),
+        ("2026-07-05", "全球储蓄——由过剩到短缺？", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
+        ("2026-06-14", "没了点阵图，市场如何反应？", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q"),
+        ("2026-06-13", "M1同比何以反弹？——2026年5月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
         ("2025-04-22", "深度 | 特朗普怎样对医药“动刀”？—— “特朗普经济学”系列之十四【陈兴团队·财通宏观】", "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"),
         ("2024-11-11", "深度 | 谁会是特朗普的新助手？——美国大选深度观察之六【财通宏观•陈兴团队】", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
         ("2024-09-25", "【划重点】国新办就金融支持经济高质量发展有关情况举行新闻发布会要点【财通宏观 陈兴团队】", "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ"),
         ("2024-07-15", "一颗子弹，几多出口？——特朗普遇刺事件解读【财通宏观•陈兴团队】", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q")
     ]
     return [{"id": i+1, "publish_time": dt, "content": title, "url": u} for i, (dt, title, u) in enumerate(fallback_urls)]
+
 
 
 
