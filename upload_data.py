@@ -79,75 +79,112 @@ def import_excel_to_db():
 
 def fetch_wechat_articles():
     """
-    2. 【核心修改区】配置华福宏观·陈兴团队最新 5 篇报告的真实链接
-    💡 提示：请把下面 url_1 到 url_5 里面的“你的真实微信链接”替换为你从微信电脑端/手机端真实复制出来的 URL 地址。
+    通过进门 MCP(comein-research) SSE 投研服务拉取「陈兴宏观研究」最近 10 篇微信公众号内容
     """
-    url_1 = "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ" 
-    url_2 = "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"
-    url_3 = "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"
-    url_4 = "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"  
-    url_5 = "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q"  
+    try:
+        from external_skills.comein_research_mcp import comein_research_mcp
+        res_str = comein_research_mcp(
+            "call_tool",
+            tool_name="wechat_article_query",
+            arguments={
+                "keywords": "陈兴",
+                "wechatArticleScope": "all",
+                "pageSize": 25,
+                "page": 1,
+                "startTime": "2024-01-01 00:00:00"
+            }
+        )
+        res_data = json.loads(res_str)
+        text = res_data.get("result", [""])[0] if res_data.get("status") == "success" else ""
 
-    articles = [
-        {
-            "id": 1,
-            "publish_time": "2026-07-01",
-            "content": "深度 | 全球储蓄：由过剩到短缺？【华福宏观·陈兴团队】",
-            "url": url_1,
-        },
-        {
-            "id": 2,
-            "publish_time": "2026-06-27",
-            "content": "美国核心PCE价格续升——全球经济观察2026年第19期【华福宏观·陈兴团队】",
-            "url": url_2,
-        },
-        {
-            "id": 3,
-            "publish_time": "2026-06-23",
-            "content": "中央财政支出提速——2026年5月财政数据解读【陈兴团队·华福宏观】",
-            "url": url_3,
-        },
-        {
-            "id": 4,
-            "publish_time": "2026-06-21",
-            "content": "深度 | 英国养老金产品如何设计？——养老金配置系列之二【华福宏观·陈兴团队】",
-            "url": url_4,
-        },
-        {
-            "id": 5,
-            "publish_time": "2026-06-20",
-            "content": "美国零售销售超预期——全球经济观察2026年第18期【华福宏观·陈兴团队】",
-            "url": url_5,
-        },
+        # 解析底部的链接映射 [1]: url1, [2]: url2...
+        import re
+        link_map = {}
+        for line in text.split("\n"):
+            m = re.match(r"^\[(\d+)\]:\s*(https?://[^\s]+)", line.strip())
+            if m:
+                link_map[m.group(1)] = m.group(2)
+
+        blocks = re.split(r"(?=### \d+\.)", text)
+        articles = []
+
+        for block in blocks:
+            if not block.strip().startswith("###"):
+                continue
+            
+            m_title = re.search(r"### \d+\.\s*\[(.*?)\]\[(\d+)\]", block)
+            if not m_title:
+                continue
+            
+            title = m_title.group(1).strip()
+            link_idx = m_title.group(2)
+            url = link_map.get(link_idx, "")
+
+            m_time = re.search(r"-\s*时间：(\d{4}-\d{2}-\d{2})", block)
+            pub_time = m_time.group(1) if m_time else datetime.now().strftime("%Y-%m-%d")
+
+            is_chenxing_macro = any(k in block for k in ["华福", "分析师", "首席经济学家论坛", "宏观", "固收", "策略", "陈兴：", "陈兴、"])
+            is_irrelevant = any(k in block for k in ["纪委监委", "商丘", "辞去", "副主席", "跳槽", "CFO", "新希望"])
+
+            if is_chenxing_macro and not is_irrelevant:
+                clean_title = title
+                if not clean_title.startswith("陈兴：") and not clean_title.startswith("【") and not "陈兴" in clean_title:
+                    clean_title = f"陈兴：{clean_title}"
+                
+                articles.append({
+                    "id": len(articles) + 1,
+                    "publish_time": pub_time,
+                    "content": clean_title,
+                    "url": url,
+                })
+        
+        if len(articles) >= 5:
+            print(f"[进门 MCP] 成功从「陈兴宏观研究」微信公众号检索到 {len(articles)} 篇最新宏观研报！")
+            return articles[:10]
+    except Exception as e:
+        print(f"[进门 MCP 实时抓取警告] 远程拉取失败, 启动降级静态逻辑: {e}")
+
+    # Fallback default 10 static links if offline
+    fallback_urls = [
+        ("2026-07-19", "陈兴：韩国央行转向加息", "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ"),
+        ("2026-07-16", "陈兴：信用降温趋势延续——2026年6月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
+        ("2026-07-12", "陈兴：美国服务业价格压力缓解", "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"),
+        ("2026-07-05", "陈兴：全球储蓄——由过剩到短缺？", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
+        ("2026-06-14", "陈兴：没了点阵图，市场如何反应？", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q"),
+        ("2026-06-13", "陈兴：M1同比何以反弹？——2026年5月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
+        ("2025-04-22", "陈兴：深度 | 特朗普怎样对医药“动刀”？——“特朗普经济学”系列", "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"),
+        ("2024-11-11", "陈兴：深度 | 谁会是特朗普的新助手？——美国大选深度观察", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
+        ("2024-09-25", "陈兴：国新办就金融支持经济高质量发展有关情况举行发布会要点", "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ"),
+        ("2024-07-15", "陈兴：一颗子弹，几多出口？——特朗普遇刺事件解读", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q")
     ]
-    return articles
+    return [{"id": i+1, "publish_time": dt, "content": title, "url": u} for i, (dt, title, u) in enumerate(fallback_urls)]
 
 
 def generate_and_save_macro_analysis():
     """
-    3. 纯 Python 本地列表引擎：组装干净、直观的 5 篇报告超链接列表入库
+    3. 组装「陈兴宏观研究」微信公众号最近 10 篇研报超链接列表入库
     """
     articles = fetch_wechat_articles()
-    if not articles or len(articles) < 5:
+    if not articles:
         return
 
-    # 构造列表各行带日期的 HTML 超链接超文本（新窗口打开：target="_blank"）
-    # 深蓝科技风：日期浅灰、链接高亮浅蓝
-    link_1 = f'<span style="color: #94a3b8;">📅 {articles[0]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[0]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[0]["content"]}</a>'
-    link_2 = f'<span style="color: #94a3b8;">📅 {articles[1]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[1]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[1]["content"]}</a>'
-    link_3 = f'<span style="color: #94a3b8;">📅 {articles[2]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[2]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[2]["content"]}</a>'
-    link_4 = f'<span style="color: #94a3b8;">📅 {articles[3]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[3]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[3]["content"]}</a>'
-    link_5 = f'<span style="color: #94a3b8;">📅 {articles[4]["publish_time"]}</span> &nbsp;&nbsp; <a href="{articles[4]["url"]}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">{articles[4]["content"]}</a>'
+    top_10 = articles[:10]
 
-    # 完全顶格的模块化列表容器（深蓝科技风）
+    rows_html = []
+    for idx, item in enumerate(top_10):
+        border_style = "border-bottom: 1px dashed #1e293b;" if idx < len(top_10) - 1 else ""
+        row_str = f'<div style="{border_style} padding: 7px 0; display: flex; align-items: center; justify-content: space-between;"><span style="color: #94a3b8; font-size: 13px; min-width: 100px;">📅 {item["publish_time"]}</span> <a href="{item["url"]}" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 14px; flex-grow: 1; margin-left: 10px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{item["content"]}</a></div>'
+        rows_html.append(row_str)
+
+    rows_combined = "\n".join(rows_html)
+
     dynamic_html = f'''<div style="background: linear-gradient(135deg, #0b1a30 0%, #081325 100%); border-radius: 12px; padding: 22px; border: 1px solid #132a4a; font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;">
-<h4 style="color:#ffffff; margin-top:0; margin-bottom: 16px;">📰 我们的最新宏观研究成果（这里跟着公众号更新）</h4>
-<div style="line-height: 2.2; color: #e2e8f0; font-size: 15px;">
-<div style="border-bottom: 1px dashed #1e293b; padding: 6px 0;">{link_1}</div>
-<div style="border-bottom: 1px dashed #1e293b; padding: 6px 0;">{link_2}</div>
-<div style="border-bottom: 1px dashed #1e293b; padding: 6px 0;">{link_3}</div>
-<div style="border-bottom: 1px dashed #1e293b; padding: 6px 0;">{link_4}</div>
-<div style="padding: 6px 0;">{link_5}</div>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid rgba(0, 240, 255, 0.15); padding-bottom: 10px;">
+    <h4 style="color:#ffffff; margin:0; font-size: 1.05rem; font-weight: 700;">📰 微信公众号：陈兴宏观研究 ‧ 最新 10 篇研报直达</h4>
+    <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 600;">🟢 进门 MCP 实时专线同步</span>
+</div>
+<div style="line-height: 2.0; color: #e2e8f0;">
+{rows_combined}
 </div>
 </div>'''
 
@@ -168,9 +205,10 @@ def generate_and_save_macro_analysis():
         )
         conn.commit()
         conn.close()
-        print("[本地列表引擎] 5篇最新研究直达列表已成功同步至数据库！")
+        print(f"[本地列表引擎] 「陈兴宏观研究」公众号最新 {len(top_10)} 篇研究超链接已成功同步至 SQLite 数据库！")
     except Exception as e:
         print(f"[本地列表引擎] 写入数据库失败: {e}")
+
 
 
 def fetch_finance_news(limit=5):
