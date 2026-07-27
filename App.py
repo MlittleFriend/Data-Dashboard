@@ -986,6 +986,25 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+st.sidebar.markdown("""
+<div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #e2e8f0; line-height: 1.45; margin-top: 10px;">
+    🟢 <b>进门 MCP (comein-research) 投研服务已在线</b><br>
+    <span style="color: #94a3b8;">协议: SSE | 鉴权: x-mcp-key</span><br>
+    <span style="color: #10b981; font-size: 0.72rem;">已联通 72 项专业金融投研 API 工具</span>
+</div>
+""", unsafe_allow_html=True)
+
+with st.sidebar.expander("🔍 进门 MCP 投研工具快速查询"):
+    mcp_query_code = st.text_input("股票/基金代码", value="sh600519", help="例如: sh600519 (贵州茅台) 或 sz300033")
+    if st.button("🚀 查询公司财务快照", key="btn_mcp_snap"):
+        try:
+            from external_skills.comein_research_mcp import comein_research_mcp
+            res_str = comein_research_mcp("call_tool", tool_name="get_financial_snapshot", arguments={"queries": [mcp_query_code]})
+            st.json(json.loads(res_str))
+        except Exception as e:
+            st.error(f"查询失败: {e}")
+
+
 
 # 6. 大屏看板头部 (Header Area with Self-Inspection Bar)
 st.markdown("""

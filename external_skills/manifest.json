@@ -44,6 +44,30 @@
         },
         "required": []
       }
+    },
+    {
+      "name": "comein_research_mcp",
+      "module": "comein_research_mcp",
+      "description": "进门 MCP(comein-research) 投研 SSE 服务网关，支持查询/调用 72 项专业金融投研工具（公司财务快照、业绩披露日、基金筛选与对比、宏观研报与研讨纪要）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "'list_tools' (列出所有可用工具) 或 'call_tool' (调用特定投研工具)"
+          },
+          "tool_name": {
+            "type": "string",
+            "description": "工具名称，例如 'get_financial_snapshot', 'company_report_date_search', 'screen_funds'"
+          },
+          "arguments": {
+            "type": "object",
+            "description": "工具入参字典"
+          }
+        },
+        "required": ["action"]
+      }
     }
   ]
 }
+
