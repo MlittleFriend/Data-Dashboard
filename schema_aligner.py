@@ -507,8 +507,17 @@ def run_alignment_pipeline(excel_file, force=False):
         df_trend.to_sql("cpi_trend", conn, if_exists="replace", index=False)
         # 兼容 sales_records
         df_trend.to_sql("sales_records", conn, if_exists="replace", index=False)
-        
-        # 4. 统计并推演最新宏观状态
+        conn.close()
+
+        # 触发 26630 通胀与财政主数据区同步
+        try:
+            from upload_data import import_inflation_and_fiscal_to_db
+            import_inflation_and_fiscal_to_db()
+        except Exception as e_inf:
+            print(f"[Pipeline] 通胀与财政主数据同步提示: {e_inf}")
+
+        conn = sqlite3.connect(DB_NAME, timeout=60.0)
+
         latest_cpi = 0.0
         latest_core = 0.0
         if not df_cpi.empty:

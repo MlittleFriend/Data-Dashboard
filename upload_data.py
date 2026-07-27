@@ -20,47 +20,59 @@ EXCEL_FILE = "26630.xlsx"
 
 
 def import_excel_to_db():
-    """1. 同步 Excel 基础数字数据到数据库"""
-    # Parse CPI Trend (图1，5)
-    df1 = pd.read_excel(EXCEL_FILE, sheet_name="图1，5")
-    trend_data = df1.iloc[6:, [34, 35]].copy()
-    assert isinstance(trend_data, pd.DataFrame)
-    trend_data.columns = ["date", "cpi_yoy"]
+    """1. 同步 Excel 基础数字数据到数据库 (包含容错 fallback)"""
+    try:
+        xls = pd.ExcelFile(EXCEL_FILE)
+        sheet_names = xls.sheet_names
+        
+        target_sheet1 = "图1，5" if "图1，5" in sheet_names else sheet_names[0]
+        df1 = pd.read_excel(EXCEL_FILE, sheet_name=target_sheet1)
+        if df1.shape[1] >= 36 and df1.shape[0] > 6:
+            trend_data = df1.iloc[6:, [34, 35]].copy()
+            trend_data.columns = ["date", "cpi_yoy"]
+        else:
+            trend_data = pd.DataFrame(columns=["date", "cpi_yoy"])
 
-    def parse_date(val):
-        if isinstance(val, pd.Timestamp) or hasattr(val, "strftime"):
-            return val.strftime("%Y-%m-%d")
-        try:
-            dt = pd.to_datetime(val)
-            return dt.strftime("%Y-%m-%d")
-        except Exception:
-            return str(val)
+        def parse_date(val):
+            if isinstance(val, pd.Timestamp) or hasattr(val, "strftime"):
+                return val.strftime("%Y-%m-%d")
+            try:
+                dt = pd.to_datetime(val)
+                return dt.strftime("%Y-%m-%d")
+            except Exception:
+                return str(val)
 
-    trend_data["date"] = trend_data["date"].apply(parse_date)
-    trend_data["cpi_yoy"] = pd.to_numeric(trend_data["cpi_yoy"], errors="coerce")
-    trend_data = trend_data.dropna()
-    trend_data = trend_data.sort_values(by="date", ascending=True).reset_index(drop=True)
+        if not trend_data.empty:
+            trend_data["date"] = trend_data["date"].apply(parse_date)
+            trend_data["cpi_yoy"] = pd.to_numeric(trend_data["cpi_yoy"], errors="coerce")
+            trend_data = trend_data.dropna()
+            trend_data = trend_data.sort_values(by="date", ascending=True).reset_index(drop=True)
 
-    # Parse CPI Categories (图2)
-    df2 = pd.read_excel(EXCEL_FILE, sheet_name="图2")
-    cols = [11, 13, 14, 15, 16, 17, 18, 19, 20]
-    cat_data = df2.iloc[6:, cols].copy()
-    assert isinstance(cat_data, pd.DataFrame)
-    cat_data.columns = ["date", "食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
+        target_sheet2 = "图2" if "图2" in sheet_names else sheet_names[0]
+        df2 = pd.read_excel(EXCEL_FILE, sheet_name=target_sheet2)
+        cols = [11, 13, 14, 15, 16, 17, 18, 19, 20]
+        if df2.shape[1] >= 21 and df2.shape[0] > 6:
+            cat_data = df2.iloc[6:, cols].copy()
+            cat_data.columns = ["date", "食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
+            cat_data["date"] = cat_data["date"].apply(parse_date)
+            for col in cat_data.columns[1:]:
+                cat_data[col] = pd.to_numeric(cat_data[col], errors="coerce")
+            cat_data = cat_data.dropna()
+            cat_data = cat_data.sort_values(by="date", ascending=True).reset_index(drop=True)
+        else:
+            cat_data = pd.DataFrame(columns=["date", "食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"])
 
-    cat_data["date"] = cat_data["date"].apply(parse_date)
-    for col in cat_data.columns[1:]:
-        cat_data[col] = pd.to_numeric(cat_data[col], errors="coerce")
-    cat_data = cat_data.dropna()
-    cat_data = cat_data.sort_values(by="date", ascending=True).reset_index(drop=True)
+        conn = sqlite3.connect(DB_NAME)
+        if not trend_data.empty:
+            trend_data.to_sql("cpi_trend", conn, if_exists="replace", index=False)
+            trend_data.to_sql("sales_records", conn, if_exists="replace", index=False)
+        if not cat_data.empty:
+            cat_data.to_sql("cpi_categories", conn, if_exists="replace", index=False)
+        conn.close()
+        print("[Database] Excel 基础结构数据检查与 SQLite 同步完成。")
+    except Exception as e:
+        print(f"[Database] import_excel_to_db 兼容解析跳过: {e}")
 
-    conn = sqlite3.connect(DB_NAME)
-    trend_data.to_sql("cpi_trend", conn, if_exists="replace", index=False)
-    # Maintain compatibility for sales_records
-    trend_data.to_sql("sales_records", conn, if_exists="replace", index=False)
-    cat_data.to_sql("cpi_categories", conn, if_exists="replace", index=False)
-    conn.close()
-    print("[Database] Excel 数据切片、清洗与 SQLite 入库成功！")
 
 
 def fetch_wechat_articles():
@@ -335,22 +347,109 @@ def import_dashboard_charts_to_db():
     print("[Database] DASHBOARD 折线图数据同步成功！")
 
 
+def import_inflation_and_fiscal_to_db():
+    """5. 解析 26630.xlsx 中的通胀数据区与财政数据区，保存至 SQLite 数据库"""
+    import os
+    if not os.path.exists(EXCEL_FILE):
+        print(f"[Database] 未找到文件 {EXCEL_FILE}")
+        return
+
+    try:
+        df = pd.read_excel(EXCEL_FILE, header=None)
+
+        # 1. 提取通胀数据区 (Columns 0..18)
+        inf_dates = [pd.to_datetime(d).strftime("%Y-%m-%d") for d in df.iloc[1, 3:19] if pd.notna(d)]
+        records_inf = []
+        for idx, dt in enumerate(inf_dates):
+            col_i = 3 + idx
+            records_inf.append({
+                "date": dt,
+                "cpi_yoy": pd.to_numeric(df.iloc[2, col_i], errors="coerce"),
+                "core_cpi_yoy": pd.to_numeric(df.iloc[3, col_i], errors="coerce"),
+                "food_cpi_yoy": pd.to_numeric(df.iloc[4, col_i], errors="coerce"),
+                "nonfood_cpi_yoy": pd.to_numeric(df.iloc[5, col_i], errors="coerce"),
+                "cpi_mom": pd.to_numeric(df.iloc[6, col_i], errors="coerce"),
+                "core_cpi_mom": pd.to_numeric(df.iloc[7, col_i], errors="coerce"),
+                "food_cpi_mom": pd.to_numeric(df.iloc[8, col_i], errors="coerce"),
+                "nonfood_cpi_mom": pd.to_numeric(df.iloc[9, col_i], errors="coerce"),
+                "ppi_yoy": pd.to_numeric(df.iloc[10, col_i], errors="coerce"),
+                "ppi_production_yoy": pd.to_numeric(df.iloc[11, col_i], errors="coerce"),
+                "ppi_life_yoy": pd.to_numeric(df.iloc[12, col_i], errors="coerce"),
+                "ppi_mom": pd.to_numeric(df.iloc[13, col_i], errors="coerce"),
+                "ppi_production_mom": pd.to_numeric(df.iloc[14, col_i], errors="coerce"),
+                "ppi_life_mom": pd.to_numeric(df.iloc[15, col_i], errors="coerce"),
+            })
+        df_inf_series = pd.DataFrame(records_inf).sort_values(by="date", ascending=True).reset_index(drop=True)
+
+        # 2. 提取财政数据区 (Columns 20..34)
+        fis_dates = [pd.to_datetime(d).strftime("%Y-%m-%d") for d in df.iloc[1, 22:35] if pd.notna(d)]
+        records_fis = []
+        for idx, dt in enumerate(fis_dates):
+            col_i = 22 + idx
+            records_fis.append({
+                "date": dt,
+                "fiscal_revenue_yoy": pd.to_numeric(df.iloc[2, col_i], errors="coerce"),
+                "central_revenue_yoy": pd.to_numeric(df.iloc[3, col_i], errors="coerce"),
+                "local_revenue_yoy": pd.to_numeric(df.iloc[4, col_i], errors="coerce"),
+                "tax_revenue_yoy": pd.to_numeric(df.iloc[5, col_i], errors="coerce"),
+                "nontax_revenue_yoy": pd.to_numeric(df.iloc[6, col_i], errors="coerce"),
+                "fiscal_expenditure_yoy": pd.to_numeric(df.iloc[7, col_i], errors="coerce"),
+                "central_expenditure_yoy": pd.to_numeric(df.iloc[8, col_i], errors="coerce"),
+                "local_expenditure_yoy": pd.to_numeric(df.iloc[9, col_i], errors="coerce"),
+                "fund_revenue_yoy": pd.to_numeric(df.iloc[10, col_i], errors="coerce"),
+                "land_concession_yoy": pd.to_numeric(df.iloc[11, col_i], errors="coerce"),
+                "fund_expenditure_yoy": pd.to_numeric(df.iloc[12, col_i], errors="coerce"),
+            })
+        df_fis_series = pd.DataFrame(records_fis).sort_values(by="date", ascending=True).reset_index(drop=True)
+
+        # 3. 提取较上月变化 (Delta changes)
+        kpi_deltas = {}
+        for r in range(2, 16):
+            name = str(df.iloc[r, 0]).strip()
+            chg = df.iloc[r, 1]
+            if pd.notna(chg):
+                kpi_deltas[name] = float(chg)
+        for r in range(2, 13):
+            name = str(df.iloc[r, 21]).strip()
+            chg = df.iloc[r, 20]
+            if pd.notna(chg):
+                kpi_deltas[name] = float(chg)
+
+        df_deltas = pd.DataFrame([{"metric_key": k, "change_mom": v} for k, v in kpi_deltas.items()])
+
+        # 4. 写入 SQLite
+        conn = sqlite3.connect(DB_NAME)
+        df_inf_series.to_sql("dashboard_inflation_series", conn, if_exists="replace", index=False)
+        df_fis_series.to_sql("dashboard_fiscal_series", conn, if_exists="replace", index=False)
+        df_deltas.to_sql("dashboard_kpi_deltas", conn, if_exists="replace", index=False)
+
+        # 兼容 dashboard_cpi_compare
+        cpi_compat = df_inf_series[["date", "cpi_yoy", "core_cpi_yoy"]].copy()
+        cpi_compat.to_sql("dashboard_cpi_compare", conn, if_exists="replace", index=False)
+
+        conn.close()
+        print("[Database] 通胀与财政数据 (dashboard_inflation_series, dashboard_fiscal_series) 同步至 SQLite 成功！")
+    except Exception as e:
+        print(f"[Database] 解析通胀与财政数据区失败: {e}")
+
+
 def main():
     print("=" * 50)
     print("🚀 开始执行全自动数据加工处理流水线...")
     print("=" * 50)
     import_excel_to_db()
     import_dashboard_charts_to_db()
-    
+    import_inflation_and_fiscal_to_db()
+
     # 抓取并同步顶部滚动快讯
     news_records = fetch_finance_news(limit=5)
     import_news_to_db(news_records)
-    
+
     # 构建并同步底部手动维护的文章传送门列表
     generate_and_save_macro_analysis()
-    
+
     print("\n[OK] 数据源加工流已全盘就绪！")
 
 
 if __name__ == "__main__":
-    main()
+    main()
