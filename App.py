@@ -704,7 +704,7 @@ def load_data(current_date_str):
     except Exception:
         df_food_prices = pd.DataFrame(columns=["date", "fresh_vegetable", "egg", "fresh_fruit", "pork"])
 
-    # V1.5.5.0: 通胀与财政主数据时序与 Delta 加载
+    # V1.5.5.0: 通胀、财政与金融主数据时序与 Delta 加载
     try:
         df_inf_series = pd.read_sql_query("SELECT * FROM dashboard_inflation_series", conn)
     except Exception:
@@ -714,6 +714,11 @@ def load_data(current_date_str):
         df_fis_series = pd.read_sql_query("SELECT * FROM dashboard_fiscal_series", conn)
     except Exception:
         df_fis_series = pd.DataFrame()
+
+    try:
+        df_fin_series = pd.read_sql_query("SELECT * FROM dashboard_finance_series", conn)
+    except Exception:
+        df_fin_series = pd.DataFrame()
 
     try:
         df_deltas = pd.read_sql_query("SELECT * FROM dashboard_kpi_deltas", conn)
@@ -763,8 +768,10 @@ def load_data(current_date_str):
         df_inf_series = df_inf_series[df_inf_series["date"] >= limit_date]
     if not df_fis_series.empty and "date" in df_fis_series.columns:
         df_fis_series = df_fis_series[df_fis_series["date"] >= limit_date]
+    if not df_fin_series.empty and "date" in df_fin_series.columns:
+        df_fin_series = df_fin_series[df_fin_series["date"] >= limit_date]
 
-    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_deltas, df_embedded_charts
+    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_deltas, df_embedded_charts
 
 
 
@@ -923,7 +930,7 @@ except Exception as e:
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
-df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_deltas, df_embedded_charts = load_data(today_str)
+df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_deltas, df_embedded_charts = load_data(today_str)
 
 
 
@@ -972,6 +979,7 @@ df_coal_prices_filtered = filter_dataframe_by_timespan(df_coal_prices, "date", t
 df_food_prices_filtered = filter_dataframe_by_timespan(df_food_prices, "date", time_span)
 df_inf_series_filtered = filter_dataframe_by_timespan(df_inf_series, "date", time_span)
 df_fis_series_filtered = filter_dataframe_by_timespan(df_fis_series, "date", time_span)
+df_fin_series_filtered = filter_dataframe_by_timespan(df_fin_series, "date", time_span)
 
 st.sidebar.markdown("---")
 
@@ -1112,6 +1120,32 @@ except Exception:
     latest_fund_rev, delta_fund_rev = -31.14, 10.88
     latest_fund_exp, delta_fund_exp = -43.66, 32.21
 
+try:
+    if not df_fin_series.empty and len(df_fin_series) >= 1:
+        df_fin_sorted = df_fin_series.sort_values(by="date", ascending=True)
+        latest_fin = df_fin_sorted.iloc[-1]
+        prev_fin = df_fin_sorted.iloc[-2] if len(df_fin_sorted) >= 2 else latest_fin
+
+        latest_sf_inc = float(latest_fin.get("social_financing_inc", 33645.0))
+        latest_credit_inc = float(latest_fin.get("credit_inc", 16100.0))
+        latest_m2_yoy = float(latest_fin.get("m2_yoy", 8.0))
+        latest_sf_stock_yoy = float(latest_fin.get("sf_stock_yoy", 7.4))
+
+        delta_sf_inc = latest_sf_inc - float(prev_fin.get("social_financing_inc", latest_sf_inc))
+        delta_credit_inc = latest_credit_inc - float(prev_fin.get("credit_inc", latest_credit_inc))
+        delta_m2_yoy = latest_m2_yoy - float(prev_fin.get("m2_yoy", latest_m2_yoy))
+        delta_sf_stock_yoy = latest_sf_stock_yoy - float(prev_fin.get("sf_stock_yoy", latest_sf_stock_yoy))
+    else:
+        latest_sf_inc, delta_sf_inc = 33645.0, 13352.0
+        latest_credit_inc, delta_credit_inc = 16100.0, 10900.0
+        latest_m2_yoy, delta_m2_yoy = 8.0, -0.6
+        latest_sf_stock_yoy, delta_sf_stock_yoy = 7.4, -0.3
+except Exception:
+    latest_sf_inc, delta_sf_inc = 33645.0, 13352.0
+    latest_credit_inc, delta_credit_inc = 16100.0, 10900.0
+    latest_m2_yoy, delta_m2_yoy = 8.0, -0.6
+    latest_sf_stock_yoy, delta_sf_stock_yoy = 7.4, -0.3
+
 # 优先读取原始 Excel 中的 较上月变化
 if not df_deltas.empty:
     delta_map = dict(zip(df_deltas["metric_key"], df_deltas["change_mom"]))
@@ -1122,6 +1156,10 @@ if not df_deltas.empty:
     if "公共财政支出" in delta_map: delta_fis_exp = delta_map["公共财政支出"]
     if "政府性基金收入" in delta_map: delta_fund_rev = delta_map["政府性基金收入"]
     if "政府性基金支出" in delta_map: delta_fund_exp = delta_map["政府性基金支出"]
+    if "社融当月新增" in delta_map: delta_sf_inc = delta_map["社融当月新增"]
+    if "信贷当月新增" in delta_map: delta_credit_inc = delta_map["信贷当月新增"]
+    if "M2同比增速" in delta_map: delta_m2_yoy = delta_map["M2同比增速"]
+    if "社融存量同比增速" in delta_map: delta_sf_stock_yoy = delta_map["社融存量同比增速"]
 
 # 第一组：通胀数据区 KPI
 st.markdown('<h4 style="color:#00f0ff; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📈 最新通胀核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
@@ -1242,6 +1280,68 @@ with kpi_col8:
         </div>
         <div class="kpi-value">{latest_fund_exp:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fund_exp):.2f}% (较上月)</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
+
+# 第三组：金融数据区 KPI
+st.markdown('<h4 style="color:#a78bfa; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏦 最新金融核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+kpi_col9, kpi_col10, kpi_col11, kpi_col12 = st.columns(4)
+
+with kpi_col9:
+    d_class = "delta-up" if delta_sf_inc >= 0 else "delta-down"
+    d_icon = "▲" if delta_sf_inc >= 0 else "▼"
+    st.markdown(f'''
+    <div class="kpi-card" style="border-top-color: #a78bfa;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">社融当月新增</span>
+            <a href="#finance-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_sf_inc:,.0f} 亿元</div>
+        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_sf_inc):,.0f} 亿元 (较上月)</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col10:
+    d_class = "delta-up" if delta_credit_inc >= 0 else "delta-down"
+    d_icon = "▲" if delta_credit_inc >= 0 else "▼"
+    st.markdown(f'''
+    <div class="kpi-card" style="border-top-color: #00f0ff;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">信贷当月新增</span>
+            <a href="#finance-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_credit_inc:,.0f} 亿元</div>
+        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_credit_inc):,.0f} 亿元 (较上月)</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col11:
+    d_class = "delta-up" if delta_m2_yoy >= 0 else "delta-down"
+    d_icon = "▲" if delta_m2_yoy >= 0 else "▼"
+    st.markdown(f'''
+    <div class="kpi-card" style="border-top-color: #ff2e93;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">M2 同比增速</span>
+            <a href="#finance-money-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_m2_yoy:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_m2_yoy):.2f}% (较上月)</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col12:
+    d_class = "delta-up" if delta_sf_stock_yoy >= 0 else "delta-down"
+    d_icon = "▲" if delta_sf_stock_yoy >= 0 else "▼"
+    st.markdown(f'''
+    <div class="kpi-card" style="border-top-color: #10b981;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">社融存量同比增速</span>
+            <a href="#finance-stock-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_sf_stock_yoy:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_sf_stock_yoy):.2f}% (较上月)</div>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -1460,6 +1560,127 @@ with col_left:
     fig_10 = render_embedded_chart_by_id(df_embedded_charts, 10)
     if fig_10:
         st.plotly_chart(fig_10, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
+
+    # ==================== 第三板块：金融数据区 ====================
+    st.markdown('<div style="border-left: 3px solid #a78bfa; padding-left: 10px; margin-bottom: 14px; margin-top: 12px;"><h4 style="color:#a78bfa; margin:0; font-size:1.0rem; font-weight:700;">🏦 金融数据区（社融、信贷、货币供应量 M1/M2 监控）</h4></div>', unsafe_allow_html=True)
+
+    # 20. 社融与信贷当月新增走势对比 (Line)
+    st.markdown('<div id="finance-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 社融与信贷当月新增走势对比 (自适应双Y轴)</p>", unsafe_allow_html=True)
+    if not df_fin_series_filtered.empty and "social_financing_inc" in df_fin_series_filtered.columns:
+        df_fin_inc = df_fin_series_filtered.rename(columns={
+            "social_financing_inc": "社融当月新增 (亿元)",
+            "credit_inc": "信贷当月新增 (亿元)",
+            "sf_rmb_loan": "其中:人民币贷款 (亿元)"
+        })
+        fig_fin_1 = render_dual_axis_line_chart(
+            df_fin_inc,
+            "date",
+            ["社融当月新增 (亿元)", "信贷当月新增 (亿元)", "其中:人民币贷款 (亿元)"],
+            colors=["#a78bfa", "#00f0ff", "#10b981"],
+            primary_y_title="新增金额 (亿元)"
+        )
+        st.plotly_chart(fig_fin_1, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 21. 社融分项结构拆分 (Line)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 社融主要分项结构变动 (债券、股票及表外融资)</p>", unsafe_allow_html=True)
+    if not df_fin_series_filtered.empty and "government_bonds" in df_fin_series_filtered.columns:
+        df_fin_struct = df_fin_series_filtered.rename(columns={
+            "government_bonds": "政府债券 (亿元)",
+            "corporate_bonds": "企业债券 (亿元)",
+            "equity_financing": "股票融资 (亿元)",
+            "undiscounted_acceptance_bills": "未贴现承兑汇票 (亿元)"
+        })
+        fig_fin_2 = render_dual_axis_line_chart(
+            df_fin_struct,
+            "date",
+            ["政府债券 (亿元)", "企业债券 (亿元)", "股票融资 (亿元)", "未贴现承兑汇票 (亿元)"],
+            colors=["#ffb703", "#38bdf8", "#ec4899", "#a78bfa"],
+            primary_y_title="金额 (亿元)"
+        )
+        st.plotly_chart(fig_fin_2, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 22. 居民与企业新增贷款期限结构对比 (Line)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 居民与企业新增贷款期限结构对比 (短期 vs 中长期)</p>", unsafe_allow_html=True)
+    if not df_fin_series_filtered.empty and "household_mid_long" in df_fin_series_filtered.columns:
+        df_fin_loans = df_fin_series_filtered.rename(columns={
+            "household_mid_long": "居民中长期贷款 (亿元)",
+            "household_short_term": "居民短期贷款 (亿元)",
+            "corporate_mid_long": "企业中长期贷款 (亿元)",
+            "corporate_short_term": "企业短期贷款 (亿元)"
+        })
+        fig_fin_3 = render_dual_axis_line_chart(
+            df_fin_loans,
+            "date",
+            ["居民中长期贷款 (亿元)", "居民短期贷款 (亿元)", "企业中长期贷款 (亿元)", "企业短期贷款 (亿元)"],
+            colors=["#10b981", "#34d399", "#f59e0b", "#fbbf24"],
+            primary_y_title="金额 (亿元)"
+        )
+        st.plotly_chart(fig_fin_3, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 23. 货币供应量 M1、M2 同比增速及 M2-M1 剪刀差 (Line)
+    st.markdown('<div id="finance-money-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 货币供应量 M1、M2 同比增速及 M2-M1 剪刀差</p>", unsafe_allow_html=True)
+    if not df_fin_series_filtered.empty and "m2_yoy" in df_fin_series_filtered.columns:
+        df_fin_money = df_fin_series_filtered.rename(columns={
+            "m1_yoy": "M1同比增速 (%)",
+            "m2_yoy": "M2同比增速 (%)",
+            "m2_m1_diff": "M2-M1剪刀差 (%)"
+        })
+        fig_fin_4 = render_dual_axis_line_chart(
+            df_fin_money,
+            "date",
+            ["M1同比增速 (%)", "M2同比增速 (%)", "M2-M1剪刀差 (%)"],
+            colors=["#00f0ff", "#ff2e93", "#ffb703"],
+            primary_y_title="同比增速 (%)"
+        )
+        st.plotly_chart(fig_fin_4, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 24. 社融存量同比增速走势 (Line)
+    st.markdown('<div id="finance-stock-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 社融存量同比增速走势</p>", unsafe_allow_html=True)
+    if not df_fin_series_filtered.empty and "sf_stock_yoy" in df_fin_series_filtered.columns:
+        df_fin_stock = df_fin_series_filtered.rename(columns={
+            "sf_stock_yoy": "社融存量同比增速 (%)"
+        })
+        fig_fin_5 = render_dual_axis_line_chart(
+            df_fin_stock,
+            "date",
+            ["社融存量同比增速 (%)"],
+            colors=["#a78bfa"],
+            primary_y_title="同比增速 (%)"
+        )
+        st.plotly_chart(fig_fin_5, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 25. 存款结构当月变动对比 (Line)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 存款结构当月变动对比 (居民、企业、财政、非银)</p>", unsafe_allow_html=True)
+    if not df_fin_series_filtered.empty and "household_deposit" in df_fin_series_filtered.columns:
+        df_fin_dep = df_fin_series_filtered.rename(columns={
+            "household_deposit": "居民存款同比多增 (亿元)",
+            "corporate_deposit": "企业存款同比多增 (亿元)",
+            "fiscal_deposit": "其中:财政存款同比多增 (亿元)",
+            "nonbank_deposit": "非银存款同比多增 (亿元)"
+        })
+        fig_fin_6 = render_dual_axis_line_chart(
+            df_fin_dep,
+            "date",
+            ["居民存款同比多增 (亿元)", "企业存款同比多增 (亿元)", "其中:财政存款同比多增 (亿元)", "非银存款同比多增 (亿元)"],
+            colors=["#38bdf8", "#10b981", "#ffb703", "#ec4899"],
+            primary_y_title="金额 (亿元)"
+        )
+        st.plotly_chart(fig_fin_6, use_container_width=True, config={'displayModeBar': False})
 
     st.markdown('</div>', unsafe_allow_html=True)
 

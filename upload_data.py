@@ -387,7 +387,7 @@ def import_dashboard_charts_to_db():
 
 
 def import_inflation_and_fiscal_to_db():
-    """5. 解析 26630.xlsx 中的通胀数据区与财政数据区，保存至 SQLite 数据库"""
+    """5. 解析 26630.xlsx 中的通胀、财政与金融数据区，保存至 SQLite 数据库"""
     import os
     if not os.path.exists(EXCEL_FILE):
         print(f"[Database] 未找到文件 {EXCEL_FILE}")
@@ -441,7 +441,37 @@ def import_inflation_and_fiscal_to_db():
             })
         df_fis_series = pd.DataFrame(records_fis).sort_values(by="date", ascending=True).reset_index(drop=True)
 
-        # 3. 提取较上月变化 (Delta changes)
+        # 3. 提取金融数据区 (Columns 35..45)
+        df_fin_series = pd.DataFrame()
+        if df.shape[1] >= 46:
+            fin_dates = [pd.to_datetime(d).strftime("%Y-%m-%d") for d in df.iloc[1, 36:46] if pd.notna(d)]
+            records_fin = []
+            fin_row_keys = [
+                "social_financing_inc", "sf_rmb_loan", "sf_yoy_diff", "sf_rmb_loan_yoy_diff",
+                "foreign_currency_loan", "entrusted_loan", "trust_loan", "undiscounted_acceptance_bills",
+                "corporate_bonds", "equity_financing", "government_bonds", "credit_inc",
+                "household_loan_inc", "household_short_term", "household_mid_long",
+                "corporate_loan_inc", "corporate_short_term", "corporate_mid_long",
+                "bill_financing", "credit_yoy_diff", "household_loan_yoy_diff",
+                "household_short_term_yoy_diff", "household_mid_long_yoy_diff",
+                "corporate_loan_yoy_diff", "corporate_short_term_yoy_diff",
+                "corporate_mid_long_yoy_diff", "bill_financing_yoy_diff", "deposit_yoy_diff",
+                "fiscal_deposit", "household_deposit", "corporate_deposit", "nonbank_deposit",
+                "m1_yoy", "m2_yoy", "m2_m1_diff", "sf_stock_yoy"
+            ]
+
+            for idx, dt in enumerate(fin_dates):
+                col_i = 36 + idx
+                rec = {"date": dt}
+                for r_i, k in enumerate(fin_row_keys):
+                    row_idx = 2 + r_i
+                    if row_idx < df.shape[0]:
+                        rec[k] = pd.to_numeric(df.iloc[row_idx, col_i], errors="coerce")
+                records_fin.append(rec)
+            if records_fin:
+                df_fin_series = pd.DataFrame(records_fin).sort_values(by="date", ascending=True).reset_index(drop=True)
+
+        # 4. 提取较上月变化 (Delta changes)
         kpi_deltas = {}
         for r in range(2, 16):
             name = str(df.iloc[r, 0]).strip()
@@ -454,12 +484,24 @@ def import_inflation_and_fiscal_to_db():
             if pd.notna(chg):
                 kpi_deltas[name] = float(chg)
 
+        # 计算金融数据最新月与前一个月的环比 Delta
+        if not df_fin_series.empty and len(df_fin_series) >= 2:
+            latest_fin = df_fin_series.iloc[-1]
+            prev_fin = df_fin_series.iloc[-2]
+            kpi_deltas["社融当月新增"] = float(latest_fin.get("social_financing_inc", 0.0)) - float(prev_fin.get("social_financing_inc", 0.0))
+            kpi_deltas["信贷当月新增"] = float(latest_fin.get("credit_inc", 0.0)) - float(prev_fin.get("credit_inc", 0.0))
+            kpi_deltas["M2同比增速"] = float(latest_fin.get("m2_yoy", 0.0)) - float(prev_fin.get("m2_yoy", 0.0))
+            kpi_deltas["M1同比增速"] = float(latest_fin.get("m1_yoy", 0.0)) - float(prev_fin.get("m1_yoy", 0.0))
+            kpi_deltas["社融存量同比增速"] = float(latest_fin.get("sf_stock_yoy", 0.0)) - float(prev_fin.get("sf_stock_yoy", 0.0))
+
         df_deltas = pd.DataFrame([{"metric_key": k, "change_mom": v} for k, v in kpi_deltas.items()])
 
-        # 4. 写入 SQLite
+        # 5. 写入 SQLite
         conn = sqlite3.connect(DB_NAME)
         df_inf_series.to_sql("dashboard_inflation_series", conn, if_exists="replace", index=False)
         df_fis_series.to_sql("dashboard_fiscal_series", conn, if_exists="replace", index=False)
+        if not df_fin_series.empty:
+            df_fin_series.to_sql("dashboard_finance_series", conn, if_exists="replace", index=False)
         df_deltas.to_sql("dashboard_kpi_deltas", conn, if_exists="replace", index=False)
 
         # 兼容 dashboard_cpi_compare
@@ -467,9 +509,10 @@ def import_inflation_and_fiscal_to_db():
         cpi_compat.to_sql("dashboard_cpi_compare", conn, if_exists="replace", index=False)
 
         conn.close()
-        print("[Database] 通胀与财政数据 (dashboard_inflation_series, dashboard_fiscal_series) 同步至 SQLite 成功！")
+        print("[Database] 通胀、财政与金融数据 (dashboard_inflation_series, dashboard_fiscal_series, dashboard_finance_series) 同步至 SQLite 成功！")
     except Exception as e:
-        print(f"[Database] 解析通胀与财政数据区失败: {e}")
+        print(f"[Database] 解析通胀、财政与金融数据区失败: {e}")
+
 
 
 def import_excel_embedded_charts_to_db(excel_file="26630.xlsx"):

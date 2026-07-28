@@ -35,7 +35,18 @@
       "Unnamed: 31",
       "Unnamed: 32",
       "Unnamed: 33",
-      "Unnamed: 34"
+      "Unnamed: 34",
+      "金融数据区",
+      "Unnamed: 36",
+      "Unnamed: 37",
+      "Unnamed: 38",
+      "Unnamed: 39",
+      "Unnamed: 40",
+      "Unnamed: 41",
+      "Unnamed: 42",
+      "Unnamed: 43",
+      "Unnamed: 44",
+      "Unnamed: 45"
     ],
     "dtypes": {
       "同通胀数据区": "str",
@@ -72,7 +83,18 @@
       "Unnamed: 31": "object",
       "Unnamed: 32": "object",
       "Unnamed: 33": "object",
-      "Unnamed: 34": "object"
+      "Unnamed: 34": "object",
+      "金融数据区": "str",
+      "Unnamed: 36": "object",
+      "Unnamed: 37": "object",
+      "Unnamed: 38": "object",
+      "Unnamed: 39": "object",
+      "Unnamed: 40": "object",
+      "Unnamed: 41": "object",
+      "Unnamed: 42": "object",
+      "Unnamed: 43": "object",
+      "Unnamed: 44": "object",
+      "Unnamed: 45": "object"
     },
     "sample_rows": [
       {
@@ -110,7 +132,18 @@
         "Unnamed: 31": "2025-08-31 00:00:00",
         "Unnamed: 32": "2025-07-31 00:00:00",
         "Unnamed: 33": "2025-06-30 00:00:00",
-        "Unnamed: 34": "2025-05-31 00:00:00"
+        "Unnamed: 34": "2025-05-31 00:00:00",
+        "金融数据区": null,
+        "Unnamed: 36": "2026-06-30 00:00:00",
+        "Unnamed: 37": "2026-05-31 00:00:00",
+        "Unnamed: 38": "2026-04-30 00:00:00",
+        "Unnamed: 39": "2026-03-31 00:00:00",
+        "Unnamed: 40": "2026-02-28 00:00:00",
+        "Unnamed: 41": "2026-01-31 00:00:00",
+        "Unnamed: 42": "2025-12-31 00:00:00",
+        "Unnamed: 43": "2025-11-30 00:00:00",
+        "Unnamed: 44": "2025-10-31 00:00:00",
+        "Unnamed: 45": "2025-09-30 00:00:00"
       },
       {
         "同通胀数据区": "CPI同比",
@@ -147,7 +180,18 @@
         "Unnamed: 31": 2.030875918434738,
         "Unnamed: 32": 2.6481012658227776,
         "Unnamed: 33": -0.3052470922582984,
-        "Unnamed: 34": 0.13136494432628432
+        "Unnamed: 34": 0.13136494432628432,
+        "金融数据区": "社融当月新增",
+        "Unnamed: 36": 33645,
+        "Unnamed: 37": 20293,
+        "Unnamed: 38": 6238,
+        "Unnamed: 39": 52240,
+        "Unnamed: 40": 23837,
+        "Unnamed: 41": 72185,
+        "Unnamed: 42": 22075,
+        "Unnamed: 43": 24926,
+        "Unnamed: 44": 8178,
+        "Unnamed: 45": 35299
       },
       {
         "同通胀数据区": "核心",
@@ -184,7 +228,18 @@
         "Unnamed: 31": 2.0299145299145227,
         "Unnamed: 32": 2.208752825148963,
         "Unnamed: 33": -1.7973178487487917,
-        "Unnamed: 34": 0.398512221041436
+        "Unnamed: 34": 0.398512221041436,
+        "金融数据区": "其中:人民币贷款",
+        "Unnamed: 36": 17650,
+        "Unnamed: 37": 4965,
+        "Unnamed: 38": -4006,
+        "Unnamed: 39": 31522,
+        "Unnamed: 40": 8458,
+        "Unnamed: 41": 49016,
+        "Unnamed: 42": 9804,
+        "Unnamed: 43": 4096,
+        "Unnamed: 44": -154,
+        "Unnamed: 45": 16081
       }
     ]
   }
