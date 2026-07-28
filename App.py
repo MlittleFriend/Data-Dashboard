@@ -190,11 +190,11 @@ st.markdown("""
         scroll-behavior: smooth !important;
     }
 
-    /* 🚀 一键回到顶部悬浮交互按钮 (Cyber Floating FAB) */
+    /* 🚀 一键回到顶部悬浮交互按钮 (Cyber Floating FAB - 界面右上角固定) */
     .back-to-top-btn {
         position: fixed !important;
-        bottom: 35px !important;
-        right: 35px !important;
+        top: 25px !important;
+        right: 75px !important;
         z-index: 999999 !important;
         background: linear-gradient(135deg, #00f0ff 0%, #7000ff 100%) !important;
         color: #ffffff !important;
