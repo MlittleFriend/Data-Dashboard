@@ -1,7 +1,7 @@
 {
   "cpi_trend": {
     "cpi_yoy": "Unnamed: 13",
-    "date": "Unnamed: 11"
+    "date": "Unnamed: 34"
   },
   "cpi_categories": {
     "食品烟酒": "Unnamed: 13",
@@ -10,8 +10,8 @@
     "生活用品": "Unnamed: 16",
     "交通通信": "Unnamed: 17",
     "文教娱乐": "Unnamed: 18",
-    "医疗": "Unnamed: 19",
     "其他": "Unnamed: 20",
+    "医疗": "Unnamed: 19",
     "date": "Unnamed: 11"
   },
   "dashboard_cpi_compare": {
@@ -20,8 +20,8 @@
     "date": "Unnamed: 11"
   },
   "dashboard_coal_prices": {
-    "dlm_price": "中国",
-    "jm_price": "中国.1",
-    "date": "国家"
+    "dlm_price": "Unnamed: 31",
+    "jm_price": "Unnamed: 31",
+    "date": "Unnamed: 26"
   }
 }

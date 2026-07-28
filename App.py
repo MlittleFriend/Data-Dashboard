@@ -853,7 +853,8 @@ def news_crawling_daemon():
 threading.Thread(target=news_crawling_daemon, daemon=True).start()
 
 # 启动 26630.xlsx 数据监听与自适应对齐引擎守护线程
-# schema_aligner.start_file_watcher()
+schema_aligner.start_file_watcher()
+
 
 # 3.3 实时文件变更与自适应自检网关 (Hot-Reload Watchdog & V1.3.0.0 Self-Inspection)
 try:

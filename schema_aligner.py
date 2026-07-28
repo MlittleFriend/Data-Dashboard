@@ -277,28 +277,33 @@ def parse_date_value(val):
 
 def process_sheet(excel_file, sheet_name, sheet_type):
     """读取指定工作表，并利用语义规则识别、自动映射列，最终返回清洗后的 DataFrame 和映射详情"""
-    df = pd.read_excel(excel_file, sheet_name=sheet_name)
+    try:
+        df = pd.read_excel(excel_file, sheet_name=sheet_name)
+    except Exception as e:
+        print(f"[Process Sheet Warning] 无法解析工作表 '{sheet_name}': {e}")
+        return pd.DataFrame(), {}
     
     # 1. 首先对齐指标数值列
     mappings = map_columns_by_keywords(df, sheet_type)
     
-    # 2. 补全可能缺失的指标映射（作为硬编码兜底保障）
+    # 2. 补全可能缺失的指标映射（作为硬编码兜底保障，附带边界检查）
     if sheet_type == "cpi_trend" and "cpi_yoy" not in mappings:
-        mappings["cpi_yoy"] = df.columns[35]
+        if len(df.columns) > 35:
+            mappings["cpi_yoy"] = df.columns[35]
     elif sheet_type == "dashboard_cpi_compare":
-        if "cpi_yoy" not in mappings:
+        if "cpi_yoy" not in mappings and len(df.columns) > 13:
             mappings["cpi_yoy"] = df.columns[13]
-        if "core_cpi_yoy" not in mappings:
+        if "core_cpi_yoy" not in mappings and len(df.columns) > 14:
             mappings["core_cpi_yoy"] = df.columns[14]
     elif sheet_type == "dashboard_coal_prices":
-        if "dlm_price" not in mappings:
+        if "dlm_price" not in mappings and len(df.columns) > 27:
             mappings["dlm_price"] = df.columns[27]
-        if "jm_price" not in mappings:
+        if "jm_price" not in mappings and len(df.columns) > 28:
             mappings["jm_price"] = df.columns[28]
     elif sheet_type == "cpi_categories":
         cats = ["食品烟酒", "衣着", "居住", "生活用品", "交通通信", "文教娱乐", "医疗", "其他"]
         for idx, cat in enumerate(cats):
-            if cat not in mappings:
+            if cat not in mappings and len(df.columns) > 13 + idx:
                 mappings[cat] = df.columns[13 + idx]
 
     # 3. 根据值列在左侧寻找最临近的日期时间主键列
@@ -306,22 +311,28 @@ def process_sheet(excel_file, sheet_name, sheet_type):
     date_col = find_closest_date_column(df, value_cols)
     if date_col is None:
         # Fallback date column index by position
-        if sheet_type == "cpi_trend":
+        if sheet_type == "cpi_trend" and len(df.columns) > 34:
             date_col = df.columns[34]
-        elif sheet_type in ["dashboard_cpi_compare", "cpi_categories"]:
+        elif sheet_type in ["dashboard_cpi_compare", "cpi_categories"] and len(df.columns) > 11:
             date_col = df.columns[11]
-        elif sheet_type == "dashboard_coal_prices":
+        elif sheet_type == "dashboard_coal_prices" and len(df.columns) > 26:
             date_col = df.columns[26]
             
     mappings["date"] = date_col
 
-    # 4. 提取需要的列并重命名
+    # 4. 提取需要的列并重命名（确保不重复引用同一源列）
+    seen_cols = set()
     selected_cols = []
     col_rename = {}
     for std_field, orig_col in mappings.items():
-        selected_cols.append(orig_col)
-        col_rename[orig_col] = std_field
+        if orig_col in df.columns and orig_col not in seen_cols:
+            seen_cols.add(orig_col)
+            selected_cols.append(orig_col)
+            col_rename[orig_col] = std_field
         
+    if not selected_cols or "date" not in mappings:
+        return pd.DataFrame(), mappings
+
     extracted_df = df[selected_cols].copy()
     extracted_df = extracted_df.rename(columns=col_rename)
     
@@ -334,10 +345,12 @@ def process_sheet(excel_file, sheet_name, sheet_type):
             extracted_df[col] = pd.to_numeric(extracted_df[col], errors="coerce")
             
     numeric_cols = [c for c in extracted_df.columns if c != "date"]
-    extracted_df = extracted_df.dropna(subset=numeric_cols, how="all")
+    if numeric_cols:
+        extracted_df = extracted_df.dropna(subset=numeric_cols, how="all")
     
-    if sheet_type == "dashboard_coal_prices":
+    if sheet_type == "dashboard_coal_prices" and "dlm_price" in extracted_df.columns and "jm_price" in extracted_df.columns:
         extracted_df = extracted_df[(extracted_df["dlm_price"] > 0) & (extracted_df["jm_price"] > 0)]
+
         
     assert isinstance(extracted_df, pd.DataFrame)
     extracted_df = extracted_df.sort_values(by="date", ascending=True).reset_index(drop=True)
@@ -488,9 +501,10 @@ def run_alignment_pipeline(excel_file, force=False):
         save_schema_snapshot(temp_excel_file, sheet_names)
         
         # 1. 动态对齐工作表
-        sheet_cpi = find_sheet_by_keyword(sheet_names, ["图1，5", "图1", "1，5", "cpi同比"]) or "图1，5"
-        sheet_cat = find_sheet_by_keyword(sheet_names, ["图2", "cpi分项", "八大分项"]) or "图2"
-        sheet_coal = find_sheet_by_keyword(sheet_names, ["图3，4", "图3", "煤炭", "coal"]) or "图3，4"
+        default_sheet = sheet_names[0] if sheet_names else "Sheet1"
+        sheet_cpi = find_sheet_by_keyword(sheet_names, ["图1，5", "图1", "1，5", "cpi同比"]) or default_sheet
+        sheet_cat = find_sheet_by_keyword(sheet_names, ["图2", "cpi分项", "八大分项"]) or default_sheet
+        sheet_coal = find_sheet_by_keyword(sheet_names, ["图3，4", "图3", "煤炭", "coal"]) or default_sheet
         
         # 2. 依次加载并解析
         df_cpi, map_cpi = process_sheet(temp_excel_file, sheet_cpi, "dashboard_cpi_compare")
@@ -501,22 +515,30 @@ def run_alignment_pipeline(excel_file, force=False):
         df_trend, map_trend = process_sheet(temp_excel_file, sheet_cpi, "cpi_trend")
         
         # 3. 将对齐数据入库
-        df_cpi.to_sql("dashboard_cpi_compare", conn, if_exists="replace", index=False)
-        df_cat.to_sql("cpi_categories", conn, if_exists="replace", index=False)
-        df_coal.to_sql("dashboard_coal_prices", conn, if_exists="replace", index=False)
-        df_trend.to_sql("cpi_trend", conn, if_exists="replace", index=False)
-        # 兼容 sales_records
-        df_trend.to_sql("sales_records", conn, if_exists="replace", index=False)
+        if not df_cpi.empty:
+            df_cpi.to_sql("dashboard_cpi_compare", conn, if_exists="replace", index=False)
+        if not df_cat.empty:
+            df_cat.to_sql("cpi_categories", conn, if_exists="replace", index=False)
+        if not df_coal.empty:
+            df_coal.to_sql("dashboard_coal_prices", conn, if_exists="replace", index=False)
+        if not df_trend.empty:
+            df_trend.to_sql("cpi_trend", conn, if_exists="replace", index=False)
+            df_trend.to_sql("sales_records", conn, if_exists="replace", index=False)
         conn.close()
 
-        # 触发 26630 通胀与财政主数据区同步
+        # 触发 26630 全量数据（基础、通胀、财政与 12 个原生嵌入图表）全自动同步
         try:
-            from upload_data import import_inflation_and_fiscal_to_db
+            from upload_data import import_excel_to_db, import_inflation_and_fiscal_to_db, import_excel_embedded_charts_to_db
+            import_excel_to_db()
             import_inflation_and_fiscal_to_db()
+            import_excel_embedded_charts_to_db()
         except Exception as e_inf:
-            print(f"[Pipeline] 通胀与财政主数据同步提示: {e_inf}")
+            print(f"[Pipeline] 26630 数据同步提示: {e_inf}")
 
         conn = sqlite3.connect(DB_NAME, timeout=60.0)
+        cursor = conn.cursor()
+
+
 
         latest_cpi = 0.0
         latest_core = 0.0
