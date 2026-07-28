@@ -859,6 +859,54 @@ def news_crawling_daemon():
 # 启动后台守护线程
 threading.Thread(target=news_crawling_daemon, daemon=True).start()
 
+# 3.4 每 12 小时 Streamlit 界面保活与唤醒 Watchdog 守护线程 (12-Hour Keep-Alive Watchdog)
+def streamlit_keepalive_watchdog():
+    """
+    每 12 小时 (43,200 秒) 自动触发一次系统唤醒与 HTTP 保活心跳，
+    刷新 SQLite 中的保活日志表并在本地 HTTP 端口维持 Streamlit 会话活跃，防止页面休眠死锁。
+    """
+    print("[Watchdog Keep-Alive] 12 小时 Streamlit 界面保活守护线程已在后台挂载启动！(周期: 43200s / 12h)")
+    while True:
+        try:
+            time.sleep(43200)  # 严格 12 小时 (12 * 3600 秒)
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[Watchdog Keep-Alive] [{now_str}] 触发 12 小时定时界面唤醒与数据心跳保活...")
+            
+            # 1. 刷新 SQLite 界面保活心跳日志
+            conn = sqlite3.connect("my_data.db", timeout=60.0)
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS streamlit_keepalive_status (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    status TEXT,
+                    ping_target TEXT,
+                    last_heartbeat TEXT
+                )
+            ''')
+            cursor.execute("DELETE FROM streamlit_keepalive_status")
+            cursor.execute(
+                "INSERT INTO streamlit_keepalive_status (status, ping_target, last_heartbeat) VALUES (?, ?, ?)",
+                ("ACTIVE_AWAKE", "http://127.0.0.1:8501", now_str)
+            )
+            conn.commit()
+            conn.close()
+
+            # 2. 尝试向 Streamlit 本地 Web 端口发送 HTTP GET 触达心跳，维持 Web 进程与 Socket 链接活跃
+            try:
+                requests.get("http://127.0.0.1:8501", timeout=5)
+                print("[Watchdog Keep-Alive] HTTP 8501 端口保活 Ping 成功发送。")
+            except Exception:
+                try:
+                    requests.get("http://localhost:8501", timeout=5)
+                    print("[Watchdog Keep-Alive] HTTP localhost:8501 端口保活 Ping 成功发送。")
+                except Exception as e_ping:
+                    print(f"[Watchdog Keep-Alive] HTTP 保活 Ping 提示: {e_ping}")
+        except Exception as e_wd:
+            print(f"[Watchdog Keep-Alive] 12 小时保活循环异常: {e_wd}")
+
+# 启动 12 小时 Watchdog 保活守护子线程
+threading.Thread(target=streamlit_keepalive_watchdog, daemon=True).start()
+
 # 启动 26630.xlsx 数据监听与自适应对齐引擎守护线程
 schema_aligner.start_file_watcher()
 
@@ -1028,6 +1076,12 @@ st.markdown("""
 # 控制论：前馈防扰动状态自检条
 last_sync_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 st.markdown(f"""
+<script>
+    // 12 小时 (43,200,000 ms) 定时前端自动刷新唤醒网关
+    setTimeout(function() {{
+        window.location.reload();
+    }}, 43200000);
+</script>
 <div class="system-status-bar">
     <div class="status-items">
         <div class="status-item" style="color: #10b981;">
@@ -1037,6 +1091,10 @@ st.markdown(f"""
         <div class="status-item" style="color: #00f0ff;">
             <span class="status-dot dot-blue"></span>
             宏观数据库 (DB Linked)
+        </div>
+        <div class="status-item" style="color: #ffb703;">
+            <span class="status-dot dot-yellow"></span>
+            12H Watchdog (Awake 43200s)
         </div>
         <div class="status-item" style="color: #a78bfa;">
             <span class="status-dot dot-purple"></span>
