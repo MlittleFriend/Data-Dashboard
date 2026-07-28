@@ -190,6 +190,39 @@ st.markdown("""
         scroll-behavior: smooth !important;
     }
 
+    /* 🚀 一键回到顶部悬浮交互按钮 (Cyber Floating FAB) */
+    .back-to-top-btn {
+        position: fixed !important;
+        bottom: 35px !important;
+        right: 35px !important;
+        z-index: 999999 !important;
+        background: linear-gradient(135deg, #00f0ff 0%, #7000ff 100%) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        border-radius: 30px !important;
+        padding: 10px 18px !important;
+        font-size: 0.88rem !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4), 0 0 15px rgba(112, 0, 255, 0.3) !important;
+        backdrop-filter: blur(10px) !important;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        text-decoration: none !important;
+        user-select: none !important;
+    }
+    .back-to-top-btn:hover {
+        transform: translateY(-4px) scale(1.06) !important;
+        box-shadow: 0 10px 30px rgba(0, 240, 255, 0.6), 0 0 25px rgba(112, 0, 255, 0.5) !important;
+        color: #ffffff !important;
+        border-color: #ffffff !important;
+    }
+    .back-to-top-btn:active {
+        transform: translateY(-1px) scale(0.98) !important;
+    }
+
     /* 核心指标 KPI 仪表盘卡片 */
     .kpi-card {
         background: rgba(6, 14, 32, 0.7);
@@ -1063,8 +1096,25 @@ with st.sidebar.expander("🔍 进门 MCP 投研工具快速查询"):
 
 
 
-# 6. 大屏看板头部 (Header Area with Self-Inspection Bar)
+# 6. 大屏看板头部 (Header Area with Self-Inspection Bar & Top Anchor)
 st.markdown("""
+<div id="top-anchor"></div>
+<!-- 🚀 随屏移动一键回到顶部悬浮交互按钮 -->
+<a href="#top-anchor" target="_self" onclick="
+    (function(){
+        var scroller = document.querySelector('section.main') || document.querySelector('.main') || window;
+        if (scroller.scrollTo) {
+            scroller.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+        document.body.scrollTo({ top: 0, behavior: 'smooth' });
+    })();
+" class="back-to-top-btn" title="一键回到顶部">
+    <span style="font-size: 1.05rem; line-height: 1;">🚀</span>
+    <span>回到顶部</span>
+</a>
+
 <div class="dashboard-header">
     <div class="dashboard-title-box">
         <h1 class="dashboard-title">China Macro Observatory</h1>
