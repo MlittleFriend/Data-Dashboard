@@ -499,27 +499,24 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
         left_title = primary_y_title or ", ".join(high_cols)
         right_title = secondary_y_title or ", ".join(low_cols)
         
-        left_color = colors[0]
-        right_color = colors[len(high_cols) % len(colors)]
-        
         fig.update_yaxes(
             title_text=left_title,
-            title_font=dict(color=left_color, size=11),
-            tickfont=dict(color=left_color, size=10),
+            title_font=dict(color="#0f172a", size=11, family="Outfit, Noto Sans SC, sans-serif"),
+            tickfont=dict(color="#0f172a", size=10),
             secondary_y=False,
             showgrid=True,
-            gridcolor="rgba(0, 0, 0, 0.06)",
+            gridcolor="rgba(0, 0, 0, 0.08)",
             zeroline=False,
-            linecolor="rgba(0, 0, 0, 0.12)"
+            linecolor="rgba(0, 0, 0, 0.15)"
         )
         fig.update_yaxes(
             title_text=right_title,
-            title_font=dict(color=right_color, size=11),
-            tickfont=dict(color=right_color, size=10),
+            title_font=dict(color="#0f172a", size=11, family="Outfit, Noto Sans SC, sans-serif"),
+            tickfont=dict(color="#0f172a", size=10),
             secondary_y=True,
             showgrid=False,
             zeroline=False,
-            linecolor="rgba(0, 0, 0, 0.12)"
+            linecolor="rgba(0, 0, 0, 0.15)"
         )
     else:
         fig = go.Figure()
@@ -535,10 +532,12 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
         left_title = primary_y_title or ", ".join(high_cols)
         fig.update_yaxes(
             title_text=left_title,
+            title_font=dict(color="#0f172a", size=11, family="Outfit, Noto Sans SC, sans-serif"),
+            tickfont=dict(color="#0f172a", size=10),
             showgrid=True,
-            gridcolor="rgba(0, 0, 0, 0.06)",
+            gridcolor="rgba(0, 0, 0, 0.08)",
             zeroline=False,
-            linecolor="rgba(0, 0, 0, 0.12)"
+            linecolor="rgba(0, 0, 0, 0.15)"
         )
         
     fig.update_layout(
@@ -554,12 +553,13 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
             xanchor="right", 
             x=1,
             bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#1e293b")
+            font=dict(color="#0f172a", size=11, family="Outfit, Noto Sans SC, sans-serif")
         ),
         xaxis=dict(
-            tickfont=dict(color="#475569"),
-            gridcolor="rgba(0, 0, 0, 0.06)",
-            linecolor="rgba(0, 0, 0, 0.12)"
+            tickfont=dict(color="#0f172a", size=10),
+            title_font=dict(color="#0f172a", size=11),
+            gridcolor="rgba(0, 0, 0, 0.08)",
+            linecolor="rgba(0, 0, 0, 0.15)"
         ),
         hovermode="x unified",
         hoverlabel=dict(
@@ -572,9 +572,10 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
     )
     fig.update_xaxes(
         showgrid=True, 
-        gridcolor="rgba(255, 255, 255, 0.03)", 
+        gridcolor="rgba(0, 0, 0, 0.08)", 
         zeroline=False, 
-        linecolor="rgba(255, 255, 255, 0.1)"
+        linecolor="rgba(0, 0, 0, 0.15)",
+        tickfont=dict(color="#0f172a", size=10)
     )
     return fig
 
@@ -596,8 +597,8 @@ def render_embedded_chart_by_id(df_embedded, cid):
 
     fig = go.Figure()
     colors = [
-        "#00f0ff", "#ffb703", "#ff2e93", "#10b981", "#a78bfa",
-        "#38bdf8", "#fbbf24", "#f43f5e", "#818cf8", "#06b6d4"
+        "#0284c7", "#d97706", "#e11d48", "#059669", "#7c3aed",
+        "#2563eb", "#fbbf24", "#db2777", "#6366f1", "#0891b2"
     ]
 
     is_stacked = "贡献拆分" in title or "拆分" in title
@@ -624,25 +625,25 @@ def render_embedded_chart_by_id(df_embedded, cid):
                 marker=dict(color=color),
                 text=[f"{v:+.1f}%" if isinstance(v, (int, float)) and abs(v) < 200 else str(v) for v in vals],
                 textposition="auto",
-                textfont=dict(color="#ffffff", size=9)
+                textfont=dict(color="#0f172a", size=9, family="Outfit, Noto Sans SC, sans-serif")
             ))
 
     barmode = "stack" if is_stacked else "group"
 
     fig.update_layout(
-        title=dict(text=f"📊 {title}", font=dict(color="#00f0ff", size=12)),
-        template="plotly_dark",
+        title=dict(text=f"📊 {title}", font=dict(color="#0f172a", size=13, family="Outfit, Noto Sans SC, sans-serif")),
+        template="plotly_white",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         height=340,
         margin=dict(l=10, r=10, t=35, b=10),
         barmode=barmode,
         hovermode="x unified" if is_stacked else "x",
-        hoverlabel=dict(bgcolor="rgba(10, 22, 47, 0.95)"),
-        legend=dict(font=dict(color="white", size=9), orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        hoverlabel=dict(bgcolor="rgba(255, 255, 255, 0.95)", font_color="#0f172a", font_size=11),
+        legend=dict(font=dict(color="#0f172a", size=10, family="Outfit, Noto Sans SC, sans-serif"), orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
-    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(255, 255, 255, 0.03)", zeroline=False, linecolor="rgba(255, 255, 255, 0.1)")
+    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(0, 0, 0, 0.15)", tickfont=dict(color="#0f172a", size=10))
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(0, 0, 0, 0.08)", zeroline=False, linecolor="rgba(0, 0, 0, 0.15)", tickfont=dict(color="#0f172a", size=10), title_font=dict(color="#0f172a", size=11))
 
     return fig
 
