@@ -16,8 +16,8 @@ import schema_aligner
 from news_sanitizer import is_valid_url, sanitize_news_item, verify_semantic_integrity
 from upload_data import fetch_finance_news
 
-# 版本标识与前馈控制参数 V1.5.4.0
-VERSION = "V1.5.4.0"
+# 版本标识与前馈控制参数 V2.0.0
+VERSION = "V2.0.0"
 
 # 加载并初始化外部技能动态网关
 try:
