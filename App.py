@@ -1483,7 +1483,7 @@ col_left, col_right = st.columns([6.5, 3.5])
 # 左半侧主视窗：全量 26630 图表单页平铺展示 (Single Unified Visualizer Panel)
 with col_left:
     st.markdown('<div class="obs-card">', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.1rem; margin-bottom:16px; font-weight: 700; letter-spacing:0.5px;">📈 26630 宏观数据全量深度可视化舱</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#0f172a; margin-top:0; font-size:1.1rem; margin-bottom:16px; font-weight: 800; letter-spacing:0.5px;">📈 26630 宏观数据全量深度可视化舱</h3>', unsafe_allow_html=True)
 
     # ==================== 第一板块：通胀数据区 ====================
     st.markdown('<div style="border-left: 3px solid #00f0ff; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#00f0ff; margin:0; font-size:1.0rem; font-weight:700;">🎯 通胀数据区（CPI 与 PPI 深度剖析）</h4></div>', unsafe_allow_html=True)
@@ -1822,7 +1822,7 @@ with col_right:
     @news_fragment
     def render_live_feed():
         st.markdown('<div class="obs-card">', unsafe_allow_html=True)
-        st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:700;">📻 实时联播快讯流 (Sina Live Feed)</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="color:#0f172a; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:800;">📻 实时联播快讯流 (Sina Live Feed)</h3>', unsafe_allow_html=True)
         
         # 实时连通数据库以获取增量快讯数据
         try:
@@ -1889,7 +1889,7 @@ with col_right:
                 if not is_valid_url(url):
                     continue
                 
-                title_html = f'<a href="{url}" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 500;">{clean_content}</a>'
+                title_html = f'<a href="{url}" target="_blank" style="color: #0284c7; text-decoration: none; font-weight: 600;">{clean_content}</a>'
 
                 card_html = f'<div class="news-card"><div class="news-time">⏱️ {time_str}</div><div class="news-content">{title_html}</div></div>'
                 news_html_cards.append(card_html)
@@ -1904,19 +1904,19 @@ with col_right:
 
     # 2. 宏观投研传导解析 (Macro Research Portal)
     st.markdown('<div class="obs-card">', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#ffffff; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:700;">🧠 深度投研传导 (WeChat Analyses)</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#0f172a; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:800;">🧠 深度投研传导 (WeChat Analyses)</h3>', unsafe_allow_html=True)
     
     if target_macro_html:
         # 直接嵌入从公众号同步入库的深色渐变底卡 HTML
         st.markdown(target_macro_html, unsafe_allow_html=True)
     else:
-        # 兜底宏观传导解析文本，适配深色磨砂材质
-        fallback_html = """<div style="background: rgba(30, 41, 59, 0.25); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 240, 255, 0.08); font-family: inherit;">
-<h5 style="color:#00f0ff; margin-top:0; font-size: 0.9rem; margin-bottom: 6px;">🌐 一、PPI 成本传导链条</h5>
-<p style="line-height:1.55; color:#cbd5e1; font-size: 0.78rem; margin-bottom: 12px;">本期上游原材料价格（煤炭、能源等）波动通过 PPI 向中游制造业逐步传导。由于下游需求仍处于温和修复阶段，传导存在时滞，需持续关注企业毛利变化。</p>
-<h5 style="color:#ffb703; font-size: 0.9rem; margin-bottom: 6px;">💧 二、央行流动性环境</h5>
-<p style="line-height:1.55; color:#cbd5e1; font-size: 0.78rem; margin-bottom: 12px;">央行通过公开市场逆回购等流动性调节，维持资金利率中枢围绕政策利率窄幅波动，强调结构性倾斜精准支持实体经济。</p>
-<div style="background: rgba(0, 240, 255, 0.06); border-left: 3px solid #00f0ff; padding: 8px 12px; border-radius: 4px; margin-top: 10px; color: #e0f2fe; font-size: 0.76rem;"><b>💡 策略提示：</b>建议结合最新高频商品现货报价调整策略。</div>
+        # 兜底宏观传导解析文本，适配浅色典雅材质
+        fallback_html = """<div style="background: #f0f9ff; border-radius: 8px; padding: 15px; border: 1px solid #bae6fd; font-family: inherit;">
+<h5 style="color:#0284c7; margin-top:0; font-size: 0.9rem; margin-bottom: 6px; font-weight:700;">🌐 一、PPI 成本传导链条</h5>
+<p style="line-height:1.55; color:#0f172a; font-size: 0.8rem; margin-bottom: 12px; font-weight:500;">本期上游原材料价格（煤炭、能源等）波动通过 PPI 向中游制造业逐步传导。由于下游需求仍处于温和修复阶段，传导存在时滞，需持续关注企业毛利变化。</p>
+<h5 style="color:#d97706; font-size: 0.9rem; margin-bottom: 6px; font-weight:700;">💧 二、央行流动性环境</h5>
+<p style="line-height:1.55; color:#0f172a; font-size: 0.8rem; margin-bottom: 12px; font-weight:500;">央行通过公开市场逆回购等流动性调节，维持资金利率中枢围绕政策利率窄幅波动，强调结构性倾斜精准支持实体经济。</p>
+<div style="background: #e0f2fe; border-left: 3px solid #0284c7; padding: 8px 12px; border-radius: 4px; margin-top: 10px; color: #0f172a; font-size: 0.78rem; font-weight:500;"><b style="color:#0284c7;">💡 策略提示：</b>建议结合最新高频商品现货报价调整策略。</div>
 </div>"""
         st.markdown(fallback_html, unsafe_allow_html=True)
         
