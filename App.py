@@ -544,16 +544,16 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
         template="plotly_white",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        height=380,
-        margin=dict(l=10, r=10, t=10, b=10),
+        height=390,
+        margin=dict(l=12, r=12, t=15, b=65),
         legend=dict(
             orientation="h", 
-            yanchor="bottom", 
-            y=1.02, 
-            xanchor="right", 
-            x=1,
+            yanchor="top", 
+            y=-0.16, 
+            xanchor="center", 
+            x=0.5,
             bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#0f172a", size=11, family="Outfit, Noto Sans SC, sans-serif")
+            font=dict(color="#0f172a", size=10.5, family="Outfit, Noto Sans SC, sans-serif")
         ),
         xaxis=dict(
             tickfont=dict(color="#0f172a", size=10),
@@ -635,12 +635,20 @@ def render_embedded_chart_by_id(df_embedded, cid):
         template="plotly_white",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        height=340,
-        margin=dict(l=10, r=10, t=35, b=10),
+        height=390,
+        margin=dict(l=12, r=12, t=40, b=70),
         barmode=barmode,
         hovermode="x unified" if is_stacked else "x",
         hoverlabel=dict(bgcolor="rgba(255, 255, 255, 0.95)", font_color="#0f172a", font_size=11),
-        legend=dict(font=dict(color="#0f172a", size=10, family="Outfit, Noto Sans SC, sans-serif"), orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(
+            font=dict(color="#0f172a", size=10, family="Outfit, Noto Sans SC, sans-serif"),
+            orientation="h",
+            yanchor="top",
+            y=-0.18,
+            xanchor="center",
+            x=0.5,
+            bgcolor="rgba(0,0,0,0)"
+        )
     )
     fig.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(0, 0, 0, 0.15)", tickfont=dict(color="#0f172a", size=10))
     fig.update_yaxes(showgrid=True, gridcolor="rgba(0, 0, 0, 0.08)", zeroline=False, linecolor="rgba(0, 0, 0, 0.15)", tickfont=dict(color="#0f172a", size=10), title_font=dict(color="#0f172a", size=11))
