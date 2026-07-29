@@ -64,10 +64,10 @@ st.markdown("""
     /* 引入 Outfit 英文和 Noto Sans SC 中文字体 */
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
     
-    /* 全局背景色与文字设定 - 深灰色高级渐变色调 */
+    /* 全局背景色与文字设定 - 浅灰色典雅现代视觉主题 */
     .stApp {
-        background: radial-gradient(circle at 50% 10%, #1e232c 0%, #0f1217 100%) !important;
-        color: #e2e8f0 !important;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+        color: #0f172a !important;
         font-family: 'Outfit', 'Noto Sans SC', sans-serif !important;
     }
     
@@ -85,7 +85,7 @@ st.markdown("""
         align-items: center;
         justify-content: space-between;
         margin-bottom: 2px;
-        border-bottom: 1px solid rgba(56, 189, 248, 0.1);
+        border-bottom: 1px solid #cbd5e1;
         padding-bottom: 8px;
     }
     
@@ -95,7 +95,7 @@ st.markdown("""
     }
     
     .dashboard-title {
-        background: linear-gradient(135deg, #00f0ff 0%, #0072ff 100%);
+        background: linear-gradient(135deg, #0f172a 0%, #0284c7 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800;
@@ -106,14 +106,14 @@ st.markdown("""
     }
     
     .dashboard-subtitle {
-        color: #00f0ff;
+        color: #0284c7;
         font-size: 0.8rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 3px;
         margin-top: 4px;
         margin-bottom: 0;
-        opacity: 0.85;
+        opacity: 0.9;
     }
 
     /* 前馈控制自检指示条 System Feed-forward State Panel */
@@ -121,16 +121,16 @@ st.markdown("""
         display: flex;
         flex-wrap: wrap;
         gap: 14px;
-        background: rgba(22, 26, 35, 0.7);
-        border: 1px solid rgba(0, 240, 255, 0.15);
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
         border-radius: 8px;
         padding: 8px 16px;
         margin-bottom: 16px;
         font-size: 0.76rem;
         align-items: center;
         justify-content: space-between;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 0 10px rgba(0, 240, 255, 0.05);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        color: #334155;
     }
     
     .status-items {
@@ -160,29 +160,28 @@ st.markdown("""
     }
     
     .dot-blue {
-        background-color: #00f0ff;
-        color: #00f0ff;
+        background-color: #0284c7;
+        color: #0284c7;
     }
     
     .dot-purple {
-        background-color: #a78bfa;
-        color: #a78bfa;
+        background-color: #6366f1;
+        color: #6366f1;
     }
 
-    /* 观察哨高密度玻璃感卡片容器 */
+    /* 观察哨高密度白色质感卡片容器 */
     .obs-card {
-        background: rgba(24, 29, 39, 0.6) !important;
-        border: 1px solid rgba(0, 240, 255, 0.12) !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
         border-radius: 12px !important;
         padding: 15px !important;
         margin-bottom: 16px !important;
-        backdrop-filter: blur(20px) !important;
-        box-shadow: 0 10px 35px 0 rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 240, 255, 0.02) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
     }
     .obs-card:hover {
-        border-color: rgba(0, 240, 255, 0.28) !important;
-        box-shadow: 0 12px 40px 0 rgba(0, 240, 255, 0.05), inset 0 0 20px rgba(0, 240, 255, 0.04) !important;
+        border-color: #0284c7 !important;
+        box-shadow: 0 6px 25px rgba(2, 132, 199, 0.08) !important;
     }
     
     /* 平滑页面滚动 */
@@ -190,22 +189,22 @@ st.markdown("""
         scroll-behavior: smooth !important;
     }
 
-    /* 🚀 一键回到顶部悬浮交互按钮 (Cyber Floating FAB - 界面右侧垂直居中固定) */
+    /* 🚀 一键回到顶部悬浮交互按钮 (Light Mode Cyber FAB - 界面右侧垂直居中固定) */
     .back-to-top-btn {
         position: fixed !important;
         top: 50% !important;
         right: 25px !important;
         transform: translateY(-50%) !important;
         z-index: 999999 !important;
-        background: linear-gradient(135deg, #00f0ff 0%, #7000ff 100%) !important;
+        background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%) !important;
         color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        border: 1px solid rgba(255, 255, 255, 0.6) !important;
         border-radius: 30px !important;
         padding: 10px 18px !important;
         font-size: 0.88rem !important;
         font-weight: 700 !important;
         cursor: pointer !important;
-        box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4), 0 0 15px rgba(112, 0, 255, 0.3) !important;
+        box-shadow: 0 6px 20px rgba(2, 132, 199, 0.35), 0 0 15px rgba(79, 70, 229, 0.2) !important;
         backdrop-filter: blur(10px) !important;
         transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
         display: flex !important;
@@ -216,7 +215,7 @@ st.markdown("""
     }
     .back-to-top-btn:hover {
         transform: translateY(-50%) scale(1.08) !important;
-        box-shadow: 0 10px 30px rgba(0, 240, 255, 0.6), 0 0 25px rgba(112, 0, 255, 0.5) !important;
+        box-shadow: 0 10px 30px rgba(2, 132, 199, 0.5), 0 0 25px rgba(79, 70, 229, 0.4) !important;
         color: #ffffff !important;
         border-color: #ffffff !important;
     }
@@ -226,18 +225,18 @@ st.markdown("""
 
     /* 核心指标 KPI 仪表盘卡片 */
     .kpi-card {
-        background: rgba(22, 27, 36, 0.75);
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        border-top: 3px solid #00c3ff;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 3px solid #0284c7;
         border-radius: 10px;
         padding: 12px 16px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
     .kpi-card:hover {
         transform: translateY(-3px);
-        border-color: rgba(0, 240, 255, 0.35);
-        box-shadow: 0 10px 30px rgba(0, 240, 255, 0.08), inset 0 0 10px rgba(0, 240, 255, 0.02);
+        border-color: #0284c7;
+        box-shadow: 0 8px 25px rgba(2, 132, 199, 0.12);
     }
     .kpi-header-row {
         display: flex;
@@ -247,24 +246,24 @@ st.markdown("""
     }
     .kpi-link {
         font-size: 0.72rem;
-        color: #38bdf8 !important;
+        color: #0284c7 !important;
         text-decoration: none !important;
         font-weight: 600;
-        background: rgba(56, 189, 248, 0.12);
+        background: rgba(2, 132, 199, 0.08);
         padding: 2px 8px;
         border-radius: 4px;
-        border: 1px solid rgba(56, 189, 248, 0.25);
+        border: 1px solid rgba(2, 132, 199, 0.2);
         transition: all 0.25s ease;
     }
     .kpi-link:hover {
-        background: rgba(56, 189, 248, 0.3);
+        background: #0284c7;
         color: #ffffff !important;
-        border-color: #38bdf8;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        border-color: #0284c7;
+        box-shadow: 0 0 10px rgba(2, 132, 199, 0.3);
     }
     .kpi-title {
         font-size: 0.78rem;
-        color: #94a3b8;
+        color: #64748b;
         font-weight: 600;
         margin-bottom: 0px;
         text-transform: uppercase;
@@ -273,8 +272,8 @@ st.markdown("""
 
     .kpi-value {
         font-size: 1.6rem;
-        font-weight: 700;
-        color: #ffffff;
+        font-weight: 800;
+        color: #0f172a;
         line-height: 1.2;
         letter-spacing: -0.5px;
     }
@@ -284,36 +283,34 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 3px;
-        font-weight: 600;
+        font-weight: 700;
     }
     .delta-up {
-        color: #ff3b30; /* 红色：上游资源价格/通胀抬升提示 */
-        text-shadow: 0 0 8px rgba(255, 59, 48, 0.2);
+        color: #dc2626; /* 红色：上涨/增加 ▲ */
     }
     .delta-down {
-        color: #34c759; /* 绿色：平稳下降 */
-        text-shadow: 0 0 8px rgba(52, 199, 89, 0.2);
+        color: #16a34a; /* 绿色：下降/减少 ▼ */
     }
     .delta-neutral {
-        color: #8e8e93;
+        color: #64748b;
     }
     
     /* 侧边栏/控制面板样式重塑 */
     .sidebar-title {
-        color: #ffffff;
+        color: #0f172a;
         font-size: 1.1rem;
         font-weight: 700;
         margin-bottom: 12px;
         display: flex;
         align-items: center;
         gap: 6px;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        border-bottom: 1px solid #e2e8f0;
         padding-bottom: 8px;
     }
     
     div[data-testid="stSidebar"] {
-        background-color: #14171e !important;
-        border-right: 1px solid rgba(0, 240, 255, 0.12) !important;
+        background-color: #f8fafc !important;
+        border-right: 1px solid #cbd5e1 !important;
     }
 
     /* 快讯卡片容器及微动画 */
@@ -466,12 +463,12 @@ def cluster_series_by_magnitude(df, value_cols):
 
 def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y_title="", secondary_y_title=""):
     """
-    自适应双 Y 轴多线绘制函数，适配科技暗调主题
+    自适应双 Y 轴多线绘制函数，适配典雅浅灰亮色视觉主题
     """
     high_cols, low_cols = cluster_series_by_magnitude(df, value_cols)
-    # 电光霓虹配色方案：Cyber Cyan, Gold/Amber, Emerald Green, Royal Purple, Rose Red, Bright Yellow
+    # 高对比亮色系：Sky Blue, Amber Gold, Emerald Green, Royal Violet, Rose Red, Cobalt Blue
     if not colors:
-        colors = ["#00f0ff", "#ffb703", "#10b981", "#a78bfa", "#ff2e93", "#e2e8f0"]
+        colors = ["#0284c7", "#d97706", "#059669", "#7c3aed", "#e11d48", "#2563eb"]
     
     if low_cols:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -509,9 +506,9 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
             tickfont=dict(color=left_color, size=10),
             secondary_y=False,
             showgrid=True,
-            gridcolor="rgba(255, 255, 255, 0.03)",
+            gridcolor="rgba(0, 0, 0, 0.06)",
             zeroline=False,
-            linecolor="rgba(255, 255, 255, 0.1)"
+            linecolor="rgba(0, 0, 0, 0.12)"
         )
         fig.update_yaxes(
             title_text=right_title,
@@ -520,7 +517,7 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
             secondary_y=True,
             showgrid=False,
             zeroline=False,
-            linecolor="rgba(255, 255, 255, 0.1)"
+            linecolor="rgba(0, 0, 0, 0.12)"
         )
     else:
         fig = go.Figure()
@@ -537,13 +534,13 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
         fig.update_yaxes(
             title_text=left_title,
             showgrid=True,
-            gridcolor="rgba(255, 255, 255, 0.03)",
+            gridcolor="rgba(0, 0, 0, 0.06)",
             zeroline=False,
-            linecolor="rgba(255, 255, 255, 0.1)"
+            linecolor="rgba(0, 0, 0, 0.12)"
         )
         
     fig.update_layout(
-        template="plotly_dark",
+        template="plotly_white",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         height=380,
@@ -555,11 +552,17 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
             xanchor="right", 
             x=1,
             bgcolor="rgba(0,0,0,0)",
-            font=dict(color="white")
+            font=dict(color="#1e293b")
+        ),
+        xaxis=dict(
+            tickfont=dict(color="#475569"),
+            gridcolor="rgba(0, 0, 0, 0.06)",
+            linecolor="rgba(0, 0, 0, 0.12)"
         ),
         hovermode="x unified",
         hoverlabel=dict(
-            bgcolor="rgba(10, 22, 47, 0.95)",
+            bgcolor="rgba(255, 255, 255, 0.95)",
+            font_color="#0f172a",
             font_size=11,
             font_family="Outfit, Noto Sans SC, sans-serif"
         ),
@@ -1270,187 +1273,201 @@ if not df_deltas.empty:
     if "M2同比增速" in delta_map: delta_m2_yoy = delta_map["M2同比增速"]
     if "社融存量同比增速" in delta_map: delta_sf_stock_yoy = delta_map["社融存量同比增速"]
 
+def format_kpi_delta(delta, unit="%"):
+    """
+    统一规范化格式化 KPI 较上月变化 (Delta):
+    - delta > 0: delta-up (红色), ▲ +值
+    - delta < 0: delta-down (绿色), ▼ -值
+    - delta == 0: delta-neutral (灰色), - 0.00%
+    """
+    if delta > 0:
+        d_class = "delta-up"
+        d_icon = "▲"
+        d_sign = "+"
+    elif delta < 0:
+        d_class = "delta-down"
+        d_icon = "▼"
+        d_sign = "-"
+    else:
+        d_class = "delta-neutral"
+        d_icon = "-"
+        d_sign = ""
+
+    val_abs = abs(delta)
+    if unit == "亿元":
+        return d_class, f"{d_icon} {d_sign}{val_abs:,.0f} 亿元 (较上月)"
+    else:
+        return d_class, f"{d_icon} {d_sign}{val_abs:.2f}% (较上月)"
+
 # 第一组：通胀数据区 KPI
-st.markdown('<h4 style="color:#00f0ff; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📈 最新通胀核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+st.markdown('<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📈 最新通胀核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
 kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
 
 with kpi_col1:
-    d_class = "delta-up" if delta_cpi >= 0 else "delta-down"
-    d_icon = "▲" if delta_cpi >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_cpi)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #00f0ff;">
+    <div class="kpi-card" style="border-top-color: #0284c7;">
         <div class="kpi-header-row">
             <span class="kpi-title">CPI 当月同比</span>
             <a href="#cpi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_cpi:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_cpi):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col2:
-    d_class = "delta-up" if delta_core >= 0 else "delta-down"
-    d_icon = "▲" if delta_core >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_core)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #ffb703;">
+    <div class="kpi-card" style="border-top-color: #d97706;">
         <div class="kpi-header-row">
             <span class="kpi-title">核心 CPI 同比</span>
             <a href="#cpi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_core:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_core):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col3:
-    d_class = "delta-up" if delta_ppi_yoy >= 0 else "delta-down"
-    d_icon = "▲" if delta_ppi_yoy >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_ppi_yoy)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #ff2e93;">
+    <div class="kpi-card" style="border-top-color: #e11d48;">
         <div class="kpi-header-row">
             <span class="kpi-title">PPI 当月同比</span>
             <a href="#ppi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_ppi_yoy:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_ppi_yoy):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col4:
-    d_class = "delta-up" if delta_ppi_mom >= 0 else "delta-down"
-    d_icon = "▲" if delta_ppi_mom >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_ppi_mom)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #a78bfa;">
+    <div class="kpi-card" style="border-top-color: #7c3aed;">
         <div class="kpi-header-row">
             <span class="kpi-title">PPI 当月环比</span>
             <a href="#ppi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_ppi_mom:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_ppi_mom):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
 # 第二组：财政数据区 KPI
-st.markdown('<h4 style="color:#38bdf8; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏛️ 最新财政核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+st.markdown('<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏛️ 最新财政核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
 kpi_col5, kpi_col6, kpi_col7, kpi_col8 = st.columns(4)
 
 with kpi_col5:
-    d_class = "delta-up" if delta_fis_rev >= 0 else "delta-down"
-    d_icon = "▲" if delta_fis_rev >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_fis_rev)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #38bdf8;">
+    <div class="kpi-card" style="border-top-color: #0284c7;">
         <div class="kpi-header-row">
             <span class="kpi-title">公共财政收入增速</span>
             <a href="#fiscal-rev-exp-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_fis_rev:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fis_rev):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col6:
-    d_class = "delta-up" if delta_fis_exp >= 0 else "delta-down"
-    d_icon = "▲" if delta_fis_exp >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_fis_exp)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #10b981;">
+    <div class="kpi-card" style="border-top-color: #059669;">
         <div class="kpi-header-row">
             <span class="kpi-title">公共财政支出增速</span>
             <a href="#fiscal-rev-exp-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_fis_exp:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fis_exp):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col7:
-    d_class = "delta-up" if delta_fund_rev >= 0 else "delta-down"
-    d_icon = "▲" if delta_fund_rev >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_fund_rev)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #f59e0b;">
+    <div class="kpi-card" style="border-top-color: #d97706;">
         <div class="kpi-header-row">
             <span class="kpi-title">政府性基金收入增速</span>
             <a href="#fiscal-fund-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_fund_rev:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fund_rev):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col8:
-    d_class = "delta-up" if delta_fund_exp >= 0 else "delta-down"
-    d_icon = "▲" if delta_fund_exp >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_fund_exp)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #ec4899;">
+    <div class="kpi-card" style="border-top-color: #db2777;">
         <div class="kpi-header-row">
             <span class="kpi-title">政府性基金支出增速</span>
             <a href="#fiscal-fund-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_fund_exp:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_fund_exp):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
 # 第三组：金融数据区 KPI
-st.markdown('<h4 style="color:#a78bfa; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏦 最新金融核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+st.markdown('<h4 style="color:#7c3aed; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏦 最新金融核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
 kpi_col9, kpi_col10, kpi_col11, kpi_col12 = st.columns(4)
 
 with kpi_col9:
-    d_class = "delta-up" if delta_sf_inc >= 0 else "delta-down"
-    d_icon = "▲" if delta_sf_inc >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_sf_inc, unit="亿元")
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #a78bfa;">
+    <div class="kpi-card" style="border-top-color: #7c3aed;">
         <div class="kpi-header-row">
             <span class="kpi-title">社融当月新增</span>
             <a href="#finance-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_sf_inc:,.0f} 亿元</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_sf_inc):,.0f} 亿元 (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col10:
-    d_class = "delta-up" if delta_credit_inc >= 0 else "delta-down"
-    d_icon = "▲" if delta_credit_inc >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_credit_inc, unit="亿元")
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #00f0ff;">
+    <div class="kpi-card" style="border-top-color: #0284c7;">
         <div class="kpi-header-row">
             <span class="kpi-title">信贷当月新增</span>
             <a href="#finance-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_credit_inc:,.0f} 亿元</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_credit_inc):,.0f} 亿元 (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col11:
-    d_class = "delta-up" if delta_m2_yoy >= 0 else "delta-down"
-    d_icon = "▲" if delta_m2_yoy >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_m2_yoy)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #ff2e93;">
+    <div class="kpi-card" style="border-top-color: #e11d48;">
         <div class="kpi-header-row">
             <span class="kpi-title">M2 同比增速</span>
             <a href="#finance-money-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_m2_yoy:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_m2_yoy):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
 with kpi_col12:
-    d_class = "delta-up" if delta_sf_stock_yoy >= 0 else "delta-down"
-    d_icon = "▲" if delta_sf_stock_yoy >= 0 else "▼"
+    d_class, d_txt = format_kpi_delta(delta_sf_stock_yoy)
     st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #10b981;">
+    <div class="kpi-card" style="border-top-color: #059669;">
         <div class="kpi-header-row">
             <span class="kpi-title">社融存量同比增速</span>
             <a href="#finance-stock-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_sf_stock_yoy:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_icon} {abs(delta_sf_stock_yoy):.2f}% (较上月)</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
 
