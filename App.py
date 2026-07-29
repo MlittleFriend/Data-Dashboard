@@ -64,9 +64,9 @@ st.markdown("""
     /* 引入 Outfit 英文和 Noto Sans SC 中文字体 */
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
     
-    /* 全局背景色与文字设定 - 对齐 China Macro Observatory 放射渐变暗色调 */
+    /* 全局背景色与文字设定 - 深灰色高级渐变色调 */
     .stApp {
-        background: radial-gradient(circle at 50% 10%, #0c1830 0%, #030712 100%) !important;
+        background: radial-gradient(circle at 50% 10%, #1e232c 0%, #0f1217 100%) !important;
         color: #e2e8f0 !important;
         font-family: 'Outfit', 'Noto Sans SC', sans-serif !important;
     }
@@ -121,7 +121,7 @@ st.markdown("""
         display: flex;
         flex-wrap: wrap;
         gap: 14px;
-        background: rgba(8, 20, 44, 0.6);
+        background: rgba(22, 26, 35, 0.7);
         border: 1px solid rgba(0, 240, 255, 0.15);
         border-radius: 8px;
         padding: 8px 16px;
@@ -171,7 +171,7 @@ st.markdown("""
 
     /* 观察哨高密度玻璃感卡片容器 */
     .obs-card {
-        background: rgba(10, 22, 47, 0.45) !important;
+        background: rgba(24, 29, 39, 0.6) !important;
         border: 1px solid rgba(0, 240, 255, 0.12) !important;
         border-radius: 12px !important;
         padding: 15px !important;
@@ -226,7 +226,7 @@ st.markdown("""
 
     /* 核心指标 KPI 仪表盘卡片 */
     .kpi-card {
-        background: rgba(6, 14, 32, 0.7);
+        background: rgba(22, 27, 36, 0.75);
         border: 1px solid rgba(255, 255, 255, 0.04);
         border-top: 3px solid #00c3ff;
         border-radius: 10px;
@@ -312,7 +312,7 @@ st.markdown("""
     }
     
     div[data-testid="stSidebar"] {
-        background-color: #060c19 !important;
+        background-color: #14171e !important;
         border-right: 1px solid rgba(0, 240, 255, 0.12) !important;
     }
 
