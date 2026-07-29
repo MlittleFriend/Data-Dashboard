@@ -190,11 +190,12 @@ st.markdown("""
         scroll-behavior: smooth !important;
     }
 
-    /* 🚀 一键回到顶部悬浮交互按钮 (Cyber Floating FAB - 界面右上角固定) */
+    /* 🚀 一键回到顶部悬浮交互按钮 (Cyber Floating FAB - 界面右侧垂直居中固定) */
     .back-to-top-btn {
         position: fixed !important;
-        top: 25px !important;
-        right: 75px !important;
+        top: 50% !important;
+        right: 25px !important;
+        transform: translateY(-50%) !important;
         z-index: 999999 !important;
         background: linear-gradient(135deg, #00f0ff 0%, #7000ff 100%) !important;
         color: #ffffff !important;
@@ -214,13 +215,13 @@ st.markdown("""
         user-select: none !important;
     }
     .back-to-top-btn:hover {
-        transform: translateY(-4px) scale(1.06) !important;
+        transform: translateY(-50%) scale(1.08) !important;
         box-shadow: 0 10px 30px rgba(0, 240, 255, 0.6), 0 0 25px rgba(112, 0, 255, 0.5) !important;
         color: #ffffff !important;
         border-color: #ffffff !important;
     }
     .back-to-top-btn:active {
-        transform: translateY(-1px) scale(0.98) !important;
+        transform: translateY(-50%) scale(0.96) !important;
     }
 
     /* 核心指标 KPI 仪表盘卡片 */
