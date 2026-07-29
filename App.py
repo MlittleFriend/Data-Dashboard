@@ -263,8 +263,8 @@ st.markdown("""
     }
     .kpi-title {
         font-size: 0.78rem;
-        color: #64748b;
-        font-weight: 600;
+        color: #1e293b; /* 加深为石墨深暗灰色，强化可读性 */
+        font-weight: 700;
         margin-bottom: 0px;
         text-transform: uppercase;
         letter-spacing: 0.8px;
@@ -292,7 +292,7 @@ st.markdown("""
         color: #16a34a; /* 绿色：下降/减少 ▼ */
     }
     .delta-neutral {
-        color: #64748b;
+        color: #334155;
     }
     
     /* 侧边栏/控制面板样式重塑 */
@@ -323,20 +323,20 @@ st.markdown("""
         width: 4px;
     }
     .news-scroll-container::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.01);
+        background: rgba(0, 0, 0, 0.03);
         border-radius: 2px;
     }
     .news-scroll-container::-webkit-scrollbar-thumb {
-        background: rgba(0, 240, 255, 0.2);
+        background: rgba(2, 132, 199, 0.3);
         border-radius: 2px;
     }
     .news-scroll-container::-webkit-scrollbar-thumb:hover {
-        background: rgba(0, 240, 255, 0.4);
+        background: rgba(2, 132, 199, 0.6);
     }
     
     .news-card {
         background: transparent !important;
-        border-bottom: 1px solid rgba(0, 240, 255, 0.12) !important;
+        border-bottom: 1px solid #e2e8f0 !important;
         padding: 10px 4px !important;
         margin-bottom: 0px !important;
         border-radius: 0px !important;
@@ -344,35 +344,37 @@ st.markdown("""
         box-shadow: none !important;
     }
     .news-card:hover {
-        background: rgba(11, 21, 40, 0.4) !important;
+        background: #f1f5f9 !important;
         padding-left: 8px !important;
-        border-bottom-color: rgba(0, 240, 255, 0.35) !important;
+        border-bottom-color: #0284c7 !important;
     }
     .news-time {
-        font-size: 0.7rem !important;
-        color: #8a99ad !important;
+        font-size: 0.72rem !important;
+        color: #475569 !important; /* 加深为石墨灰 */
         margin-bottom: 4px !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         letter-spacing: 0.5px !important;
     }
     .news-content {
-        font-size: 0.8rem !important;
-        color: #cbd5e1 !important;
+        font-size: 0.82rem !important;
+        color: #0f172a !important; /* 加深为纯正深灰色，清晰易读 */
         line-height: 1.45 !important;
+        font-weight: 500 !important;
     }
     .news-content a {
-        color: #00f0ff !important;
+        color: #0284c7 !important;
         text-decoration: none !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
         transition: color 0.2s ease !important;
     }
     .news-content a:hover {
-        color: #0072ff !important;
+        color: #0369a1 !important;
         text-decoration: underline !important;
     }
     .news-text-plain {
-        color: #cbd5e1 !important;
+        color: #1e293b !important;
         cursor: default !important;
+        font-weight: 500 !important;
     }
 
     /* 选项卡 (Tabs) 美化 */
@@ -1074,17 +1076,17 @@ if st.sidebar.button("🔄 立即同步最新数据 (Sync Now)"):
     st.rerun()
 
 st.sidebar.markdown("""
-<div style="background: rgba(0, 240, 255, 0.04); border: 1px solid rgba(0, 240, 255, 0.1); border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #94a3b8; line-height: 1.45;">
-    💡 <b>智联提示</b><br>
+<div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #334155; line-height: 1.45; font-weight: 500;">
+    💡 <b style="color: #0284c7;">智联提示</b><br>
     本看板自动从数据库加载最新通胀与财政数据切片，自适应双 Y 轴聚类算法已部署，点击页首指标旁的链接可平滑滚动至对应图表舱。
 </div>
 """, unsafe_allow_html=True)
 
 st.sidebar.markdown("""
-<div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #e2e8f0; line-height: 1.45; margin-top: 10px;">
-    🟢 <b>进门 MCP (comein-research) 投研服务已在线</b><br>
-    <span style="color: #94a3b8;">协议: SSE | 鉴权: x-mcp-key</span><br>
-    <span style="color: #10b981; font-size: 0.72rem;">已联通 72 项专业金融投研 API 工具</span>
+<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #0f172a; line-height: 1.45; margin-top: 10px; font-weight: 500;">
+    🟢 <b style="color: #16a34a;">进门 MCP (comein-research) 投研服务已在线</b><br>
+    <span style="color: #475569; font-weight: 600;">协议: SSE | 鉴权: x-mcp-key</span><br>
+    <span style="color: #16a34a; font-size: 0.72rem; font-weight: 700;">已联通 72 项专业金融投研 API 工具</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1138,25 +1140,25 @@ st.markdown(f"""
 </script>
 <div class="system-status-bar">
     <div class="status-items">
-        <div class="status-item" style="color: #10b981;">
+        <div class="status-item" style="color: #059669;">
             <span class="status-dot dot-green"></span>
             前馈控制 (Pre-control Active)
         </div>
-        <div class="status-item" style="color: #00f0ff;">
+        <div class="status-item" style="color: #0284c7;">
             <span class="status-dot dot-blue"></span>
             宏观数据库 (DB Linked)
         </div>
-        <div class="status-item" style="color: #ffb703;">
+        <div class="status-item" style="color: #d97706;">
             <span class="status-dot dot-yellow"></span>
             12H Watchdog (Awake 43200s)
         </div>
-        <div class="status-item" style="color: #a78bfa;">
+        <div class="status-item" style="color: #4f46e5;">
             <span class="status-dot dot-purple"></span>
-            版本控制: <span style="color: #ffffff; font-weight: 700; margin-left: 2px;">{VERSION}</span>
+            版本控制: <span style="color: #0f172a; font-weight: 700; margin-left: 2px;">{VERSION}</span>
         </div>
     </div>
-    <div style="color: #94a3b8; font-weight: 500;">
-        ⏱️ 系统同步时间: <span style="color: #00f0ff; font-weight: 600;">{last_sync_time}</span> | 架构模式: <span style="color: #ffffff; font-weight: 600;">Cybernetic Defend</span>
+    <div style="color: #334155; font-weight: 600;">
+        ⏱️ 系统同步时间: <span style="color: #0284c7; font-weight: 700;">{last_sync_time}</span> | 架构模式: <span style="color: #0f172a; font-weight: 700;">Cybernetic Defend</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1167,17 +1169,17 @@ status_info = load_listener_status()
 if status_info:
     with st.container():
         st.markdown(f"""
-        <div class="obs-card" style="border-top: 3px solid #00f0ff; padding: 18px !important; margin-bottom: 20px !important;">
+        <div class="obs-card" style="border-top: 3px solid #0284c7; padding: 18px !important; margin-bottom: 20px !important;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; color: #00f0ff; font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                <h4 style="margin: 0; color: #0284c7; font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
                     🤖 26630 智能自适应对齐与深度研判
                 </h4>
-                <span style="font-size: 0.72rem; color: #94a3b8;">
+                <span style="font-size: 0.72rem; color: #475569; font-weight: 600;">
                     🔄 最新同步: {status_info['update_time']} | 算法: LLM 语义中继与规则对齐
                 </span>
             </div>
-            <div style="background: rgba(0, 240, 255, 0.04); border-left: 3px solid #00f0ff; padding: 12px 16px; border-radius: 4px; margin-bottom: 12px; color: #e2e8f0; font-size: 0.88rem; line-height: 1.6;">
-                💡 <b>研究员多维深度解读：</b>{status_info['deep_analysis']}
+            <div style="background: #f0f9ff; border-left: 3px solid #0284c7; padding: 12px 16px; border-radius: 4px; margin-bottom: 12px; color: #0f172a; font-size: 0.88rem; line-height: 1.6; font-weight: 500;">
+                💡 <b style="color: #0369a1;">研究员多维深度解读：</b>{status_info['deep_analysis']}
             </div>
         </div>
         """, unsafe_allow_html=True)
