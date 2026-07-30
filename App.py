@@ -2092,23 +2092,3 @@ with col_right:
 
     render_live_feed()
 
-    # 2. 宏观投研传导解析 (Macro Research Portal)
-    st.markdown('<div class="obs-card">', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#0f172a; margin-top:0; font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:6px; font-weight:800;">🧠 深度投研传导 (WeChat Analyses)</h3>', unsafe_allow_html=True)
-    
-    if target_macro_html:
-        # 直接嵌入从公众号同步入库的深色渐变底卡 HTML
-        st.markdown(target_macro_html, unsafe_allow_html=True)
-    else:
-        # 兜底宏观传导解析文本，适配浅色典雅材质
-        fallback_html = """<div style="background: #f0f9ff; border-radius: 8px; padding: 15px; border: 1px solid #bae6fd; font-family: inherit;">
-<h5 style="color:#0284c7; margin-top:0; font-size: 0.9rem; margin-bottom: 6px; font-weight:700;">🌐 一、PPI 成本传导链条</h5>
-<p style="line-height:1.55; color:#0f172a; font-size: 0.8rem; margin-bottom: 12px; font-weight:500;">本期上游原材料价格（煤炭、能源等）波动通过 PPI 向中游制造业逐步传导。由于下游需求仍处于温和修复阶段，传导存在时滞，需持续关注企业毛利变化。</p>
-<h5 style="color:#d97706; font-size: 0.9rem; margin-bottom: 6px; font-weight:700;">💧 二、央行流动性环境</h5>
-<p style="line-height:1.55; color:#0f172a; font-size: 0.8rem; margin-bottom: 12px; font-weight:500;">央行通过公开市场逆回购等流动性调节，维持资金利率中枢围绕政策利率窄幅波动，强调结构性倾斜精准支持实体经济。</p>
-<div style="background: #e0f2fe; border-left: 3px solid #0284c7; padding: 8px 12px; border-radius: 4px; margin-top: 10px; color: #0f172a; font-size: 0.78rem; font-weight:500;"><b style="color:#0284c7;">💡 策略提示：</b>建议结合最新高频商品现货报价调整策略。</div>
-</div>"""
-        st.markdown(fallback_html, unsafe_allow_html=True)
-        
-    st.markdown('</div>', unsafe_allow_html=True)
-
