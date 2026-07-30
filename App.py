@@ -1356,7 +1356,7 @@ with kpi_col_e1:
     <div class="kpi-card" style="border-top-color: #0284c7;">
         <div class="kpi-header-row">
             <span class="kpi-title">制造业 PMI</span>
-            <a href="#econ-pmi-chart" target="_self" class="kpi-link">📊 详细数据 ↗</a>
+            <a href="#econ-detail-pmi" target="_self" class="kpi-link">📊 详细数据 ↗</a>
         </div>
         <div class="kpi-value">{latest_pmi_manuf:.1f}</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
@@ -1369,7 +1369,7 @@ with kpi_col_e2:
     <div class="kpi-card" style="border-top-color: #d97706;">
         <div class="kpi-header-row">
             <span class="kpi-title">固资投资增速</span>
-            <a href="#econ-investment-chart" target="_self" class="kpi-link">📊 详细数据 ↗</a>
+            <a href="#econ-detail-investment" target="_self" class="kpi-link">📊 详细数据 ↗</a>
         </div>
         <div class="kpi-value">{latest_fai_yoy:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
@@ -1382,7 +1382,7 @@ with kpi_col_e3:
     <div class="kpi-card" style="border-top-color: #10b981;">
         <div class="kpi-header-row">
             <span class="kpi-title">社零增速</span>
-            <a href="#econ-retail-chart" target="_self" class="kpi-link">📊 详细数据 ↗</a>
+            <a href="#econ-detail-retail" target="_self" class="kpi-link">📊 详细数据 ↗</a>
         </div>
         <div class="kpi-value">{latest_retail_sales_yoy:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
@@ -1395,7 +1395,7 @@ with kpi_col_e4:
     <div class="kpi-card" style="border-top-color: #e11d48;">
         <div class="kpi-header-row">
             <span class="kpi-title">出口同比</span>
-            <a href="#econ-trade-chart" target="_self" class="kpi-link">📊 详细数据 ↗</a>
+            <a href="#econ-detail-trade" target="_self" class="kpi-link">📊 详细数据 ↗</a>
         </div>
         <div class="kpi-value">{latest_export_yoy:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
@@ -1634,9 +1634,11 @@ em_col1, em_col2, em_col3, em_col4, em_col5 = st.columns(5)
 
 with em_col1:
     st.markdown(f"""
+    <div id="econ-detail-gdp"></div>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #0284c7; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-            🏛️ GDP 与工业效益
+        <div style="font-size: 0.82rem; font-weight: 700; color: #0284c7; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🏛️ GDP 与工业效益</span>
+            <a href="#econ-gdp-chart" target="_self" style="font-size: 0.68rem; color: #0284c7; text-decoration: none; font-weight: 600;">📊 图表 ↗</a>
         </div>
         <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
             <span>GDP 实际同比 ({latest_gdp_q}):</span> <b style="color: #0f172a;">{latest_gdp_yoy:+.1f}%</b>
@@ -1665,9 +1667,11 @@ with em_col2:
     p_exp_cls = "#dc2626" if pmi_exp_orders >= 50 else "#16a34a"
     p_non_cls = "#dc2626" if pmi_non_manuf >= 50 else "#16a34a"
     st.markdown(f"""
+    <div id="econ-detail-pmi"></div>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #d97706; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-            🏭 PMI 景气指数明细
+        <div style="font-size: 0.82rem; font-weight: 700; color: #d97706; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🏭 PMI 景气指数明细</span>
+            <a href="#econ-pmi-chart" target="_self" style="font-size: 0.68rem; color: #d97706; text-decoration: none; font-weight: 600;">📊 图表 ↗</a>
         </div>
         <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
             <span>制造业PMI-生产:</span> <b style="color: {p_prod_cls};">{pmi_prod:.1f}</b>
@@ -1686,9 +1690,11 @@ with em_col2:
 
 with em_col3:
     st.markdown(f"""
+    <div id="econ-detail-investment"></div>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #059669; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-            🏗️ 固资投资结构细分
+        <div style="font-size: 0.82rem; font-weight: 700; color: #059669; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🏗️ 固资投资结构细分</span>
+            <a href="#econ-investment-chart" target="_self" style="font-size: 0.68rem; color: #059669; text-decoration: none; font-weight: 600;">📊 图表 ↗</a>
         </div>
         <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
             <span>房地产开发投资:</span> <b style="color: #0f172a;">{fai_re:+.2f}%</b>
@@ -1705,8 +1711,9 @@ with em_col3:
 with em_col4:
     st.markdown(f"""
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #7c3aed; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-            🏠 房地产开发链明细
+        <div style="font-size: 0.82rem; font-weight: 700; color: #7c3aed; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🏠 房地产开发链明细</span>
+            <a href="#econ-investment-chart" target="_self" style="font-size: 0.68rem; color: #7c3aed; text-decoration: none; font-weight: 600;">📊 图表 ↗</a>
         </div>
         <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
             <span>商品房销售面积:</span> <b style="color: #0f172a;">{prop_sales:+.2f}%</b>
@@ -1722,9 +1729,12 @@ with em_col4:
 
 with em_col5:
     st.markdown(f"""
+    <div id="econ-detail-retail"></div>
+    <div id="econ-detail-trade"></div>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #e11d48; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-            🛒 消费、失业与外贸
+        <div style="font-size: 0.82rem; font-weight: 700; color: #e11d48; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🛒 消费、失业与外贸</span>
+            <a href="#econ-retail-chart" target="_self" style="font-size: 0.68rem; color: #e11d48; text-decoration: none; font-weight: 600;">📊 图表 ↗</a>
         </div>
         <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
             <span>限额以上社零:</span> <b style="color: #0f172a;">{retail_above:+.1f}%</b>
