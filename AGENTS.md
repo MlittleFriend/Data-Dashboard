@@ -4,7 +4,10 @@
 
 - 部署链路：GitHub `origin/main` → Streamlit Cloud 自动重新部署。
 - 用户已授权：**完成代码或数据改动后，直接 commit 并 push 到 `origin/main`，无需逐次确认**。
-- `cloud_sync.py` 在 26630.xlsx 变更入库存后自动推送 `SYNC_FILES`（数据产物 + 看板核心代码）。
+- 数据流：手动更新本地 26630.xlsx → watcher 识别 SHA 变化 → 对齐管线入库 → 校验闸门通过 → `cloud_sync.py` 推送 `SYNC_FILES`（26630 + schema 文件 + 看板核心代码）。
+- **`my_data.db` 不入库**：云端容器启动时由对齐管线从 26630.xlsx 现场重建，避免二进制冲突与仓库膨胀。每日 GitHub Action 只做管线冒烟校验，不再提交任何文件。
+- 推送前校验闸门：`schema_aligner.validate_pipeline_output()`（嵌入图 20 张、KPI 关键列非空），不通过则拦截推送。
+- 最近一次同步结果持久化在 `cloud_sync_status.json`（已 gitignore），侧栏有状态巡检卡。
 - 环境变量：`CLOUD_SYNC_ENABLED=0` 关闭自动同步；`CLOUD_SYNC_DRY_RUN=1` 演练模式。
 
 ## 界面图表口径

@@ -443,6 +443,44 @@ def generate_deep_analysis_llm(latest_cpi, latest_core, latest_dlm, coal_trend_u
     return generate_deep_analysis_heuristics(latest_cpi, latest_core, latest_dlm, coal_trend_up)
 
 
+def validate_pipeline_output():
+    """
+    推送前校验闸门：核对核心数据表完整性，防止错误的对齐结果被同步到云端。
+    返回错误描述列表，空列表表示校验通过。
+    """
+    errors = []
+    try:
+        conn = sqlite3.connect(DB_NAME, timeout=60.0)
+        cursor = conn.cursor()
+
+        # 1. 底稿内嵌图表必须齐 20 张
+        try:
+            n_charts = cursor.execute("SELECT COUNT(*) FROM dashboard_embedded_charts").fetchone()[0]
+            if n_charts != 20:
+                errors.append(f"嵌入图表数量异常: {n_charts} (期望 20)")
+        except Exception:
+            errors.append("dashboard_embedded_charts 表缺失")
+
+        # 2. KPI 关键指标列不允许全空（列错位/数据断流的典型特征）
+        for table, col in [
+            ("dashboard_cpi_compare", "cpi_yoy"),
+            ("dashboard_inflation_series", "cpi_yoy"),
+            ("dashboard_finance_series", "m1_yoy"),
+            ("dashboard_fiscal_series", "fiscal_revenue_yoy"),
+            ("dashboard_economic_series", "pmi_manuf"),
+        ]:
+            try:
+                cnt = cursor.execute(f"SELECT COUNT({col}) FROM {table}").fetchone()[0]
+                if cnt == 0:
+                    errors.append(f"{table}.{col} 全为空")
+            except Exception:
+                errors.append(f"{table}.{col} 读取失败")
+        conn.close()
+    except Exception as e:
+        errors.append(f"校验闸门自身异常: {e}")
+    return errors
+
+
 def run_alignment_pipeline(excel_file, force=False):
     """核心对齐管线"""
     if not os.path.exists(excel_file):
@@ -607,11 +645,18 @@ def run_alignment_pipeline(excel_file, force=False):
         conn.commit()
         print(f"[Pipeline] 26630.xlsx 数据映射入库完毕，生成解读: {deep_analysis}")
 
-        # 7. 云端同步闭环：将最新 26630 与数据产物推送至 GitHub，触发 Streamlit Cloud 重新部署
+        # 7. 推送前校验闸门：核心数据表必须完整，防止坏对齐结果污染云端
+        validation_errors = validate_pipeline_output()
+
+        # 8. 云端同步闭环：将最新 26630 与数据产物推送至 GitHub，触发 Streamlit Cloud 重新部署
         #    （非 git 环境如 Streamlit Cloud 容器内会自动静默跳过）
         try:
             import cloud_sync
-            cloud_sync.sync_to_cloud(reason="26630 数据更新")
+            if validation_errors:
+                print(f"[Pipeline] 校验闸门未通过，已拦截云端同步: {validation_errors}")
+                cloud_sync.record_sync_result(False, "校验拦截: " + "; ".join(validation_errors)[:120])
+            else:
+                cloud_sync.sync_to_cloud(reason="26630 数据更新")
         except Exception as e_sync:
             print(f"[Pipeline] 云端同步提示: {e_sync}")
     except Exception as e:
@@ -653,7 +698,8 @@ def start_file_watcher():
                     mtime = str(os.path.getmtime(EXCEL_FILE))
                     sha = calculate_sha256(EXCEL_FILE)
                     
-                    if sha != last_sha256 or mtime != last_mtime:
+                    # 仅以内容哈希作为变更依据，忽略 OneDrive 等仅触碰 mtime 的无效写入
+                    if sha and sha != last_sha256:
                         print(f"[Watcher] 侦测到 {EXCEL_FILE} 发生改变 (SHA-256: {sha[:8]}...)")
                         run_alignment_pipeline(EXCEL_FILE, force=True)
                         last_sha256 = sha

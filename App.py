@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 # pyrefly: ignore [missing-import]
 import plotly.graph_objects as go
+import requests
 import streamlit as st
 from plotly.subplots import make_subplots
 
@@ -1041,7 +1042,7 @@ try:
             cur_chk = conn_chk.cursor()
             cur_chk.execute("SELECT sha256, mtime FROM file_listener_status ORDER BY id DESC LIMIT 1")
             chk_row = cur_chk.fetchone()
-            if chk_row and chk_row[0] == current_sha and chk_row[1] == current_mtime:
+            if chk_row and chk_row[0] == current_sha:
                 db_matched = True
             conn_chk.close()
         except Exception:
@@ -1114,6 +1115,31 @@ st.sidebar.markdown('<div class="sidebar-title">🎛️ 观察哨控制台 / Con
 if st.sidebar.button("🔄 立即同步最新数据 (Sync Now)"):
     st.cache_data.clear()
     st.rerun()
+
+# 云端同步状态巡检卡（读取 cloud_sync.py 持久化的最近一次推送结果，推送失败时可被及时发现）
+_cloud_sync_status = None
+if os.path.exists("cloud_sync_status.json"):
+    try:
+        with open("cloud_sync_status.json", "r", encoding="utf-8") as _f:
+            _cloud_sync_status = json.load(_f)
+    except Exception:
+        _cloud_sync_status = None
+
+if _cloud_sync_status:
+    _cs_ok = _cloud_sync_status.get("ok")
+    _cs_color = "#16a34a" if _cs_ok else "#dc2626"
+    _cs_bg = "#f0fdf4" if _cs_ok else "#fef2f2"
+    _cs_border = "#bbf7d0" if _cs_ok else "#fecaca"
+    _cs_icon = "✅" if _cs_ok else "❌"
+    _cs_commit = _cloud_sync_status.get("commit", "")
+    _cs_commit_html = f" | commit: <b>{_cs_commit}</b>" if _cs_commit else ""
+    st.sidebar.markdown(f'''
+<div style="background: {_cs_bg}; border: 1px solid {_cs_border}; border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #0f172a; line-height: 1.45; margin-top: 10px; font-weight: 500;">
+    {_cs_icon} <b style="color: {_cs_color};">云端同步 (Cloud Sync)</b><br>
+    <span style="color: #475569; font-weight: 600;">{_cloud_sync_status.get("message", "")}{_cs_commit_html}</span><br>
+    <span style="color: #64748b; font-size: 0.72rem; font-weight: 600;">{_cloud_sync_status.get("time", "")}</span>
+</div>
+''', unsafe_allow_html=True)
 
 st.sidebar.markdown("""
 <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #334155; line-height: 1.45; font-weight: 500;">
@@ -1371,8 +1397,22 @@ def format_kpi_delta(delta, unit="%"):
     else:
         return d_class, f"{d_icon} {d_sign}{val_abs:.2f}% (较上月)"
 
+
+# 从各数据表的最大日期动态推导当前数据期（月度更新后标签自动跟随，无需改代码）
+def _derive_data_period(*dfs):
+    date_maxes = []
+    for _df in dfs:
+        if not _df.empty and "date" in _df.columns:
+            date_maxes.append(str(_df["date"].max())[:7])
+    if date_maxes:
+        return max(date_maxes)
+    return datetime.now().strftime("%Y-%m")
+
+
+data_period = _derive_data_period(df_inf_series, df_fin_series, df_fis_series, df_econ_series)
+
 # 第一组：经济数据区 KPI（最上方）
-st.markdown('<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📊 最新经济核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+st.markdown(f'<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📊 最新经济核心指标（数据点：{data_period}）</h4>', unsafe_allow_html=True)
 kpi_col_e1, kpi_col_e2, kpi_col_e3, kpi_col_e4 = st.columns(4)
 
 with kpi_col_e1:
@@ -1430,7 +1470,7 @@ with kpi_col_e4:
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
 # 第二组：通胀数据区 KPI
-st.markdown('<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📈 最新通胀核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+st.markdown(f'<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📈 最新通胀核心指标（数据点：{data_period}）</h4>', unsafe_allow_html=True)
 kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
 
 with kpi_col1:
@@ -1488,7 +1528,7 @@ with kpi_col4:
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
 # 第三组：金融数据区 KPI
-st.markdown('<h4 style="color:#7c3aed; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏦 最新金融核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+st.markdown(f'<h4 style="color:#7c3aed; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏦 最新金融核心指标（数据点：{data_period}）</h4>', unsafe_allow_html=True)
 kpi_col9, kpi_col10, kpi_col11, kpi_col12 = st.columns(4)
 
 with kpi_col9:
@@ -1546,7 +1586,7 @@ with kpi_col12:
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
 # 第四组：财政数据区 KPI（最末尾，采用紧凑样式减小展示区域）
-st.markdown('<h4 style="color:#059669; margin-top:0; margin-bottom:8px; font-size:0.88rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏛️ 最新财政核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+st.markdown(f'<h4 style="color:#059669; margin-top:0; margin-bottom:8px; font-size:0.88rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏛️ 最新财政核心指标（数据点：{data_period}）</h4>', unsafe_allow_html=True)
 kpi_col5, kpi_col6, kpi_col7, kpi_col8 = st.columns(4)
 
 with kpi_col5:
@@ -1643,11 +1683,11 @@ else:
     import_yoy, trade_bal = 36.01, 1256.23
 
 # 7.6 独立经济数据细化明细舱 (Detailed Economic Metrics Panel)
-st.markdown("""
+st.markdown(f"""
 <div class="obs-card" style="border-top: 3px solid #0284c7; margin-bottom: 20px !important; padding: 16px !important;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">
         <h4 style="margin: 0; color: #0284c7; font-size: 1.0rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-            📑 26630 经济数据全景明细舱（数据点：2026-06）
+            📑 26630 经济数据全景明细舱（数据点：{data_period}）
         </h4>
         <span style="font-size: 0.74rem; color: #64748b; font-weight: 600;">
             包含未置顶于 Top KPI 大区的全量经济细分数据切片

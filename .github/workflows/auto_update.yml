@@ -1,4 +1,4 @@
-name: Auto Update Financial Data
+name: Daily Data Pipeline Check
 
 on:
   schedule:
@@ -8,16 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-data:
+  validate-pipeline:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # 授予工作流向仓库写入代码的权限
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,21 +23,22 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas requests openpyxl
+          pip install -r requirements.txt
 
-      - name: Run upload_data.py
-        run: python upload_data.py
-
-      - name: Commit and push updated database
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # my_data.db 已不入库：本任务只做管线冒烟校验（26630 解析 + 新闻抓取 + 入库全流程在临时 workspace 中跑通即可），
+      # 云端 Streamlit 容器启动时会从 26630.xlsx 现场重建数据库，无需在此提交任何文件。
+      - name: Run data pipeline smoke check
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add my_data.db
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "auto: update my_data.db at $(date -Iseconds)"
-            git push
-          fi
+          python upload_data.py
+          python -c "
+import sqlite3
+conn = sqlite3.connect('my_data.db')
+cur = conn.cursor()
+cur.execute(\"SELECT COUNT(*) FROM dashboard_embedded_charts\")
+n = cur.fetchone()[0]
+assert n == 20, f'嵌入图表数量异常: {n} (期望 20)'
+cur.execute('SELECT COUNT(cpi_yoy) FROM dashboard_cpi_compare')
+assert cur.fetchone()[0] > 0, 'dashboard_cpi_compare.cpi_yoy 全为空'
+conn.close()
+print('Daily pipeline smoke check OK: 20 embedded charts, CPI data present.')
+"

@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 *.pyo
+my_data.db
+cloud_sync_status.json
