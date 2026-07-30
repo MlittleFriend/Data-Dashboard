@@ -1398,7 +1398,7 @@ def format_kpi_delta(delta, unit="%"):
         return d_class, f"{d_icon} {d_sign}{val_abs:.2f}% (较上月)"
 
 
-# 从各数据表的最大日期动态推导当前数据期（月度更新后标签自动跟随，无需改代码）
+# 从各数据表的最大日期动态推导当前数据期（各数据区更新节奏不同，按区独立推导）
 def _derive_data_period(*dfs):
     date_maxes = []
     for _df in dfs:
@@ -1406,13 +1406,17 @@ def _derive_data_period(*dfs):
             date_maxes.append(str(_df["date"].max())[:7])
     if date_maxes:
         return max(date_maxes)
-    return datetime.now().strftime("%Y-%m")
+    return ""
 
 
-data_period = _derive_data_period(df_inf_series, df_fin_series, df_fis_series, df_econ_series)
+data_period = _derive_data_period(df_inf_series, df_fin_series, df_fis_series, df_econ_series) or datetime.now().strftime("%Y-%m")
+econ_period = _derive_data_period(df_econ_series) or data_period
+inf_period = _derive_data_period(df_inf_series) or data_period
+fin_period = _derive_data_period(df_fin_series) or data_period
+fis_period = _derive_data_period(df_fis_series) or data_period
 
 # 第一组：经济数据区 KPI（最上方）
-st.markdown(f'<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📊 最新经济核心指标（数据点：{data_period}）</h4>', unsafe_allow_html=True)
+st.markdown(f'<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📊 最新经济核心指标（数据点：{econ_period}）</h4>', unsafe_allow_html=True)
 kpi_col_e1, kpi_col_e2, kpi_col_e3, kpi_col_e4 = st.columns(4)
 
 with kpi_col_e1:
@@ -1470,7 +1474,7 @@ with kpi_col_e4:
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
 # 第二组：通胀数据区 KPI
-st.markdown(f'<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📈 最新通胀核心指标（数据点：{data_period}）</h4>', unsafe_allow_html=True)
+st.markdown(f'<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📈 最新通胀核心指标（数据点：{inf_period}）</h4>', unsafe_allow_html=True)
 kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
 
 with kpi_col1:
@@ -1528,7 +1532,7 @@ with kpi_col4:
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
 # 第三组：金融数据区 KPI
-st.markdown(f'<h4 style="color:#7c3aed; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏦 最新金融核心指标（数据点：{data_period}）</h4>', unsafe_allow_html=True)
+st.markdown(f'<h4 style="color:#7c3aed; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏦 最新金融核心指标（数据点：{fin_period}）</h4>', unsafe_allow_html=True)
 kpi_col9, kpi_col10, kpi_col11, kpi_col12 = st.columns(4)
 
 with kpi_col9:
@@ -1586,7 +1590,7 @@ with kpi_col12:
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
 # 第四组：财政数据区 KPI（最末尾，采用紧凑样式减小展示区域）
-st.markdown(f'<h4 style="color:#059669; margin-top:0; margin-bottom:8px; font-size:0.88rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏛️ 最新财政核心指标（数据点：{data_period}）</h4>', unsafe_allow_html=True)
+st.markdown(f'<h4 style="color:#059669; margin-top:0; margin-bottom:8px; font-size:0.88rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏛️ 最新财政核心指标（数据点：{fis_period}）</h4>', unsafe_allow_html=True)
 kpi_col5, kpi_col6, kpi_col7, kpi_col8 = st.columns(4)
 
 with kpi_col5:
@@ -1687,7 +1691,7 @@ st.markdown(f"""
 <div class="obs-card" style="border-top: 3px solid #0284c7; margin-bottom: 20px !important; padding: 16px !important;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">
         <h4 style="margin: 0; color: #0284c7; font-size: 1.0rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-            📑 26630 经济数据全景明细舱（数据点：{data_period}）
+            📑 26630 经济数据全景明细舱（数据点：{econ_period}）
         </h4>
         <span style="font-size: 0.74rem; color: #64748b; font-weight: 600;">
             包含未置顶于 Top KPI 大区的全量经济细分数据切片
@@ -1826,7 +1830,7 @@ with col_left:
     st.markdown('<h3 style="color:#0f172a; margin-top:0; font-size:1.1rem; margin-bottom:16px; font-weight: 800; letter-spacing:0.5px;">📈 26630 底稿图表全景可视化舱</h3>', unsafe_allow_html=True)
 
     # ==================== 第一板块：经济数据区 ====================
-    st.markdown('<div style="border-left: 3px solid #0284c7; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#0284c7; margin:0; font-size:1.0rem; font-weight:700;">🎯 经济数据区（宏观增长、工业投资与内外需监控）</h4></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="border-left: 3px solid #0284c7; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#0284c7; margin:0; font-size:1.0rem; font-weight:700;">🎯 经济数据区（数据点：{econ_period}）</h4></div>', unsafe_allow_html=True)
 
     # 保留原 KPI 锚点，点击后滚动至经济数据区板块
     st.markdown('<div id="econ-pmi-chart"></div><div id="econ-investment-chart"></div><div id="econ-retail-chart"></div><div id="econ-industry-chart"></div><div id="econ-gdp-chart"></div>', unsafe_allow_html=True)
@@ -1884,7 +1888,7 @@ with col_left:
         st.plotly_chart(fig_pmi_orders, use_container_width=True, config={'displayModeBar': False})
 
     st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
-    st.markdown('<div style="border-left: 3px solid #00f0ff; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#00f0ff; margin:0; font-size:1.0rem; font-weight:700;">🎯 通胀数据区（CPI 与 PPI 深度剖析）</h4></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="border-left: 3px solid #00f0ff; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#00f0ff; margin:0; font-size:1.0rem; font-weight:700;">🎯 通胀数据区（数据点：{inf_period}）</h4></div>', unsafe_allow_html=True)
 
     # 1. CPI 环比 (Chart #3, Anchor: #cpi-chart)
     st.markdown('<div id="cpi-chart"></div>', unsafe_allow_html=True)
@@ -1938,7 +1942,7 @@ with col_left:
     st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
 
     # ==================== 第二板块：财政数据区 ====================
-    st.markdown('<div style="border-left: 3px solid #38bdf8; padding-left: 10px; margin-bottom: 14px; margin-top: 12px;"><h4 style="color:#38bdf8; margin:0; font-size:1.0rem; font-weight:700;">🏛️ 财政数据区（公共财政与基金预算监控）</h4></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="border-left: 3px solid #38bdf8; padding-left: 10px; margin-bottom: 14px; margin-top: 12px;"><h4 style="color:#38bdf8; margin:0; font-size:1.0rem; font-weight:700;">🏛️ 财政数据区（数据点：{fis_period}）</h4></div>', unsafe_allow_html=True)
 
     # 13. 主要税种当月同比增速 (Chart #11, Anchor: #fiscal-rev-exp-chart)
     st.markdown('<div id="fiscal-rev-exp-chart"></div>', unsafe_allow_html=True)
@@ -1968,7 +1972,7 @@ with col_left:
     st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
 
     # ==================== 第三板块：金融数据区 ====================
-    st.markdown('<div style="border-left: 3px solid #a78bfa; padding-left: 10px; margin-bottom: 14px; margin-top: 12px;"><h4 style="color:#a78bfa; margin:0; font-size:1.0rem; font-weight:700;">🏦 金融数据区（社融、信贷、货币供应量 M1/M2 监控）</h4></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="border-left: 3px solid #a78bfa; padding-left: 10px; margin-bottom: 14px; margin-top: 12px;"><h4 style="color:#a78bfa; margin:0; font-size:1.0rem; font-weight:700;">🏦 金融数据区（数据点：{fin_period}）</h4></div>', unsafe_allow_html=True)
 
     # 17. 社融分项同比多增 (Chart #13, Anchor: #finance-chart)
     st.markdown('<div id="finance-chart"></div>', unsafe_allow_html=True)
