@@ -606,6 +606,14 @@ def run_alignment_pipeline(excel_file, force=False):
         )
         conn.commit()
         print(f"[Pipeline] 26630.xlsx 数据映射入库完毕，生成解读: {deep_analysis}")
+
+        # 7. 云端同步闭环：将最新 26630 与数据产物推送至 GitHub，触发 Streamlit Cloud 重新部署
+        #    （非 git 环境如 Streamlit Cloud 容器内会自动静默跳过）
+        try:
+            import cloud_sync
+            cloud_sync.sync_to_cloud(reason="26630 数据更新")
+        except Exception as e_sync:
+            print(f"[Pipeline] 云端同步提示: {e_sync}")
     except Exception as e:
         print(f"[Pipeline] 数据对齐管线运行出错: {e}")
         import traceback
