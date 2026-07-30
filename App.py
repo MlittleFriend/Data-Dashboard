@@ -1578,9 +1578,171 @@ with kpi_col8:
 
 st.markdown('<div style="margin-bottom: 16px;"></div>', unsafe_allow_html=True)
 
+# 7.5 提取经济数据细化明细（未在 KPI 大区顶置展示的细化数据切片）
+latest_gdp_yoy = float(df_gdp_series.iloc[-1].get("gdp_yoy", 4.3)) if not df_gdp_series.empty else 4.3
+latest_gdp_mom = float(df_gdp_series.iloc[-1].get("gdp_mom", 0.9)) if not df_gdp_series.empty else 0.9
+latest_gdp_q = str(df_gdp_series.iloc[-1].get("quarter", "26Q2")) if not df_gdp_series.empty else "26Q2"
 
+if not df_econ_series.empty and len(df_econ_series) >= 1:
+    latest_econ_row = df_econ_series.iloc[-1]
+    ind_yoy = float(latest_econ_row.get("industrial_gva_yoy", 5.3))
+    ind_mom = float(latest_econ_row.get("industrial_gva_mom", 0.76))
+    srv_yoy = float(latest_econ_row.get("service_index_yoy", 4.7))
+    profit_yoy = float(latest_econ_row.get("profit_yoy", 0.0))
+    revenue_yoy = float(latest_econ_row.get("revenue_yoy", 0.0))
 
-# 8. 左右两栏网格布局重构 (Main Two-Column Grid Layout)
+    pmi_prod = float(latest_econ_row.get("pmi_manuf_prod", 51.4))
+    pmi_orders = float(latest_econ_row.get("pmi_manuf_orders", 51.2))
+    pmi_exp_orders = float(latest_econ_row.get("pmi_manuf_export_orders", 50.1))
+    pmi_non_manuf = float(latest_econ_row.get("pmi_non_manuf", 50.2))
+
+    fai_re = float(latest_econ_row.get("fai_realestate_yoy", -24.39))
+    fai_infra = float(latest_econ_row.get("fai_infra_yoy", -9.78))
+    fai_manuf = float(latest_econ_row.get("fai_manuf_yoy", -3.22))
+
+    prop_sales = float(latest_econ_row.get("property_sales_area_yoy", -14.33))
+    prop_starts = float(latest_econ_row.get("property_starts_yoy", -25.98))
+    prop_comp = float(latest_econ_row.get("property_completions_yoy", -25.02))
+
+    retail_above = float(latest_econ_row.get("retail_sales_above_size_yoy", -2.00))
+    unemployment = float(latest_econ_row.get("unemployment_rate", 5.0))
+
+    import_yoy = float(latest_econ_row.get("import_yoy", 36.01))
+    trade_bal = float(latest_econ_row.get("trade_balance", 1256.23))
+else:
+    ind_yoy, ind_mom, srv_yoy, profit_yoy, revenue_yoy = 5.3, 0.76, 4.7, 0.0, 0.0
+    pmi_prod, pmi_orders, pmi_exp_orders, pmi_non_manuf = 51.4, 51.2, 50.1, 50.2
+    fai_re, fai_infra, fai_manuf = -24.39, -9.78, -3.22
+    prop_sales, prop_starts, prop_comp = -14.33, -25.98, -25.02
+    retail_above, unemployment = -2.0, 5.0
+    import_yoy, trade_bal = 36.01, 1256.23
+
+# 7.6 独立经济数据细化明细舱 (Detailed Economic Metrics Panel)
+st.markdown("""
+<div class="obs-card" style="border-top: 3px solid #0284c7; margin-bottom: 20px !important; padding: 16px !important;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">
+        <h4 style="margin: 0; color: #0284c7; font-size: 1.0rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+            📑 26630 经济数据全景明细舱（数据点：2026-06）
+        </h4>
+        <span style="font-size: 0.74rem; color: #64748b; font-weight: 600;">
+            包含未置顶于 Top KPI 大区的全量经济细分数据切片
+        </span>
+    </div>
+""", unsafe_allow_html=True)
+
+em_col1, em_col2, em_col3, em_col4, em_col5 = st.columns(5)
+
+with em_col1:
+    st.markdown(f"""
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #0284c7; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+            🏛️ GDP 与工业效益
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>GDP 实际同比 ({latest_gdp_q}):</span> <b style="color: #0f172a;">{latest_gdp_yoy:+.1f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>GDP 环比增速 ({latest_gdp_q}):</span> <b style="color: #0f172a;">{latest_gdp_mom:+.1f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>工增当月同比:</span> <b style="color: #0f172a;">{ind_yoy:+.1f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>工增当月环比:</span> <b style="color: #0f172a;">{ind_mom:+.2f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>服务业生产指数:</span> <b style="color: #0f172a;">{srv_yoy:+.1f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between;">
+            <span>规上工业利润同比:</span> <b style="color: #0f172a;">{profit_yoy:+.1f}%</b>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with em_col2:
+    p_prod_cls = "#dc2626" if pmi_prod >= 50 else "#16a34a"
+    p_ord_cls = "#dc2626" if pmi_orders >= 50 else "#16a34a"
+    p_exp_cls = "#dc2626" if pmi_exp_orders >= 50 else "#16a34a"
+    p_non_cls = "#dc2626" if pmi_non_manuf >= 50 else "#16a34a"
+    st.markdown(f"""
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #d97706; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+            🏭 PMI 景气指数明细
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>制造业PMI-生产:</span> <b style="color: {p_prod_cls};">{pmi_prod:.1f}</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>制造业PMI-新订单:</span> <b style="color: {p_ord_cls};">{pmi_orders:.1f}</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>制造业PMI-新出口订单:</span> <b style="color: {p_exp_cls};">{pmi_exp_orders:.1f}</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between;">
+            <span>非制造业 PMI:</span> <b style="color: {p_non_cls};">{pmi_non_manuf:.1f}</b>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with em_col3:
+    st.markdown(f"""
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #059669; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+            🏗️ 固资投资结构细分
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>房地产开发投资:</span> <b style="color: #0f172a;">{fai_re:+.2f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>基础设施投资:</span> <b style="color: #0f172a;">{fai_infra:+.2f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between;">
+            <span>制造业投资:</span> <b style="color: #0f172a;">{fai_manuf:+.2f}%</b>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with em_col4:
+    st.markdown(f"""
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #7c3aed; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+            🏠 房地产开发链明细
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>商品房销售面积:</span> <b style="color: #0f172a;">{prop_sales:+.2f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>房屋新开工面积:</span> <b style="color: #0f172a;">{prop_starts:+.2f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between;">
+            <span>房屋竣工面积:</span> <b style="color: #0f172a;">{prop_comp:+.2f}%</b>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with em_col5:
+    st.markdown(f"""
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #e11d48; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+            🛒 消费、失业与外贸
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>限额以上社零:</span> <b style="color: #0f172a;">{retail_above:+.1f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>城镇调查失业率:</span> <b style="color: #0f172a;">{unemployment:.1f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>进口当月同比:</span> <b style="color: #0f172a;">{import_yoy:+.2f}%</b>
+        </div>
+        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between;">
+            <span>当月贸易差额:</span> <b style="color: #0f172a;">{trade_bal:,.1f} 亿$</b>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div style="margin-bottom: 16px;"></div>', unsafe_allow_html=True)
 col_left, col_right = st.columns([6.5, 3.5])
 
 # 左半侧主视窗：全量 26630 图表单页平铺展示 (Single Unified Visualizer Panel)
