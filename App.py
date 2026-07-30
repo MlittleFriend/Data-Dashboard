@@ -1264,22 +1264,22 @@ try:
 
         latest_sf_inc = float(latest_fin.get("social_financing_inc", 33645.0))
         latest_credit_inc = float(latest_fin.get("credit_inc", 16100.0))
-        latest_m2_yoy = float(latest_fin.get("m2_yoy", 8.0))
+        latest_m1_yoy = float(latest_fin.get("m1_yoy", 4.0))
         latest_sf_stock_yoy = float(latest_fin.get("sf_stock_yoy", 7.4))
 
         delta_sf_inc = latest_sf_inc - float(prev_fin.get("social_financing_inc", latest_sf_inc))
         delta_credit_inc = latest_credit_inc - float(prev_fin.get("credit_inc", latest_credit_inc))
-        delta_m2_yoy = latest_m2_yoy - float(prev_fin.get("m2_yoy", latest_m2_yoy))
+        delta_m1_yoy = latest_m1_yoy - float(prev_fin.get("m1_yoy", latest_m1_yoy))
         delta_sf_stock_yoy = latest_sf_stock_yoy - float(prev_fin.get("sf_stock_yoy", latest_sf_stock_yoy))
     else:
         latest_sf_inc, delta_sf_inc = 33645.0, 13352.0
         latest_credit_inc, delta_credit_inc = 16100.0, 10900.0
-        latest_m2_yoy, delta_m2_yoy = 8.0, -0.6
+        latest_m1_yoy, delta_m1_yoy = 4.0, -1.5
         latest_sf_stock_yoy, delta_sf_stock_yoy = 7.4, -0.3
 except Exception:
     latest_sf_inc, delta_sf_inc = 33645.0, 13352.0
     latest_credit_inc, delta_credit_inc = 16100.0, 10900.0
-    latest_m2_yoy, delta_m2_yoy = 8.0, -0.6
+    latest_m1_yoy, delta_m1_yoy = 4.0, -1.5
     latest_sf_stock_yoy, delta_sf_stock_yoy = 7.4, -0.3
 
 # 7.4 计算经济数据 KPI (制造业PMI、固资投资增速、社零增速、出口同比)
@@ -1330,8 +1330,8 @@ if not df_deltas.empty:
         delta_sf_inc = delta_map["社融当月新增"]
     if "信贷当月新增" in delta_map:
         delta_credit_inc = delta_map["信贷当月新增"]
-    if "M2同比增速" in delta_map:
-        delta_m2_yoy = delta_map["M2同比增速"]
+    if "M1同比增速" in delta_map:
+        delta_m1_yoy = delta_map["M1同比增速"]
     if "社融存量同比增速" in delta_map:
         delta_sf_stock_yoy = delta_map["社融存量同比增速"]
     if "制造业PMI" in delta_map:
@@ -1518,14 +1518,14 @@ with kpi_col10:
     ''', unsafe_allow_html=True)
 
 with kpi_col11:
-    d_class, d_txt = format_kpi_delta(delta_m2_yoy)
+    d_class, d_txt = format_kpi_delta(delta_m1_yoy)
     st.markdown(f'''
     <div class="kpi-card" style="border-top-color: #e11d48;">
         <div class="kpi-header-row">
-            <span class="kpi-title">M2 同比增速</span>
+            <span class="kpi-title">M1 同比增速</span>
             <a href="#finance-money-chart" target="_self" class="kpi-link">🏦 细化图表 ↗</a>
         </div>
-        <div class="kpi-value">{latest_m2_yoy:+.2f}%</div>
+        <div class="kpi-value">{latest_m1_yoy:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
