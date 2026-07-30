@@ -238,6 +238,37 @@ st.markdown("""
         border-color: #0284c7;
         box-shadow: 0 8px 25px rgba(2, 132, 199, 0.12);
     }
+    /* 紧凑型 KPI 卡片（用于财政数据区，减小展示面积） */
+    .kpi-card-compact {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 3px solid #059669;
+        border-radius: 8px;
+        padding: 8px 12px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        transition: all 0.25s ease;
+    }
+    .kpi-card-compact:hover {
+        transform: translateY(-2px);
+        border-color: #059669;
+        box-shadow: 0 6px 18px rgba(5, 150, 105, 0.12);
+    }
+    .kpi-card-compact .kpi-header-row {
+        margin-bottom: 2px !important;
+    }
+    .kpi-card-compact .kpi-value {
+        font-size: 1.22rem !important;
+        font-weight: 700 !important;
+        margin: 2px 0 1px 0 !important;
+        color: #0f172a;
+    }
+    .kpi-card-compact .kpi-title {
+        font-size: 0.74rem !important;
+    }
+    .kpi-card-compact .kpi-delta {
+        font-size: 0.70rem !important;
+        margin-top: 2px !important;
+    }
     .kpi-header-row {
         display: flex;
         justify-content: space-between;
@@ -769,6 +800,16 @@ def load_data(current_date_str):
         df_fin_series = pd.DataFrame()
 
     try:
+        df_econ_series = pd.read_sql_query("SELECT * FROM dashboard_economic_series", conn)
+    except Exception:
+        df_econ_series = pd.DataFrame()
+
+    try:
+        df_gdp_series = pd.read_sql_query("SELECT * FROM dashboard_gdp_series", conn)
+    except Exception:
+        df_gdp_series = pd.DataFrame()
+
+    try:
         df_deltas = pd.read_sql_query("SELECT * FROM dashboard_kpi_deltas", conn)
     except Exception:
         df_deltas = pd.DataFrame()
@@ -818,8 +859,10 @@ def load_data(current_date_str):
         df_fis_series = df_fis_series[df_fis_series["date"] >= limit_date]
     if not df_fin_series.empty and "date" in df_fin_series.columns:
         df_fin_series = df_fin_series[df_fin_series["date"] >= limit_date]
+    if not df_econ_series.empty and "date" in df_econ_series.columns:
+        df_econ_series = df_econ_series[df_econ_series["date"] >= limit_date]
 
-    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_deltas, df_embedded_charts
+    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_econ_series, df_gdp_series, df_deltas, df_embedded_charts
 
 
 
@@ -1026,58 +1069,21 @@ except Exception as e:
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
-df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_deltas, df_embedded_charts = load_data(today_str)
+df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_econ_series, df_gdp_series, df_deltas, df_embedded_charts = load_data(today_str)
 
+# 使用全量真实数据时序呈现折线图
+df_cpi_compare_filtered = df_cpi_compare
+df_coal_prices_filtered = df_coal_prices
+df_food_prices_filtered = df_food_prices
+df_inf_series_filtered = df_inf_series
+df_fis_series_filtered = df_fis_series
+df_fin_series_filtered = df_fin_series
+df_econ_series_filtered = df_econ_series
+df_gdp_series_filtered = df_gdp_series
 
 
 # 5. 侧边栏/控制面板 (Sidebar Control Panel)
 st.sidebar.markdown('<div class="sidebar-title">🎛️ 观察哨控制台 / Controls</div>', unsafe_allow_html=True)
-
-# 动态时间跨度选择器
-time_span = st.sidebar.selectbox(
-    "📊 数据时间范围 (Date Filter)",
-    options=["全部历史数据 (All)", "近三年 (Last 3 Years)", "近一年 (Last Year)", "近半年 (Last 6 Months)"],
-    index=0
-)
-
-# 动态过滤函数的实现
-def filter_dataframe_by_timespan(df, date_col, time_span_option):
-    if df.empty or date_col not in df.columns:
-        return df
-    
-    df_temp = df.copy()
-    try:
-        df_temp[date_col] = pd.to_datetime(df_temp[date_col])
-    except Exception:
-        return df
-        
-    latest_date = df_temp[date_col].max()
-    if pd.isnull(latest_date):
-        return df
-        
-    if "近三年" in time_span_option:
-        start_date = latest_date - pd.DateOffset(years=3)
-    elif "近一年" in time_span_option:
-        start_date = latest_date - pd.DateOffset(years=1)
-    elif "近半年" in time_span_option:
-        start_date = latest_date - pd.DateOffset(months=6)
-    else:
-        df_temp[date_col] = df_temp[date_col].dt.strftime("%Y-%m-%d")
-        return df_temp
-        
-    df_filtered = df_temp[df_temp[date_col] >= start_date].copy()
-    df_filtered[date_col] = df_filtered[date_col].dt.strftime("%Y-%m-%d")
-    return df_filtered
-
-# 对折线图数据表执行过滤
-df_cpi_compare_filtered = filter_dataframe_by_timespan(df_cpi_compare, "date", time_span)
-df_coal_prices_filtered = filter_dataframe_by_timespan(df_coal_prices, "date", time_span)
-df_food_prices_filtered = filter_dataframe_by_timespan(df_food_prices, "date", time_span)
-df_inf_series_filtered = filter_dataframe_by_timespan(df_inf_series, "date", time_span)
-df_fis_series_filtered = filter_dataframe_by_timespan(df_fis_series, "date", time_span)
-df_fin_series_filtered = filter_dataframe_by_timespan(df_fin_series, "date", time_span)
-
-st.sidebar.markdown("---")
 
 # 强制触发同步按钮
 if st.sidebar.button("🔄 立即同步最新数据 (Sync Now)"):
@@ -1087,7 +1093,7 @@ if st.sidebar.button("🔄 立即同步最新数据 (Sync Now)"):
 st.sidebar.markdown("""
 <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px; font-size: 0.76rem; color: #334155; line-height: 1.45; font-weight: 500;">
     💡 <b style="color: #0284c7;">智联提示</b><br>
-    本看板自动从数据库加载最新通胀与财政数据切片，自适应双 Y 轴聚类算法已部署，点击页首指标旁的链接可平滑滚动至对应图表舱。
+    本看板自动从数据库加载最新通胀、财政与经济数据切片，自适应双 Y 轴聚类算法已部署，点击页首指标旁的链接可平滑滚动至对应图表舱。
 </div>
 """, unsafe_allow_html=True)
 
@@ -1173,28 +1179,8 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# 控制对齐状态呈现与二阶推演深度解读
-status_info = load_listener_status()
-if status_info:
-    with st.container():
-        st.markdown(f"""
-        <div class="obs-card" style="border-top: 3px solid #0284c7; padding: 18px !important; margin-bottom: 20px !important;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; color: #0284c7; font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                    🤖 26630 智能自适应对齐与深度研判
-                </h4>
-                <span style="font-size: 0.72rem; color: #475569; font-weight: 600;">
-                    🔄 最新同步: {status_info['update_time']} | 算法: LLM 语义中继与规则对齐
-                </span>
-            </div>
-            <div style="background: #f0f9ff; border-left: 3px solid #0284c7; padding: 12px 16px; border-radius: 4px; margin-bottom: 12px; color: #0f172a; font-size: 0.88rem; line-height: 1.6; font-weight: 500;">
-                💡 <b style="color: #0369a1;">研究员多维深度解读：</b>{status_info['deep_analysis']}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-
 # 7. 顶部大盘指标卡行 (Top Row: KPI Metrics Dashboards with Anchor Jump Links)
+# 7.1 计算通胀数据 KPI
 try:
     if not df_inf_series.empty and len(df_inf_series) >= 1:
         df_inf_sorted = df_inf_series.sort_values(by="date", ascending=True)
@@ -1217,6 +1203,7 @@ except Exception:
     latest_cpi, delta_cpi, latest_core, delta_core = 1.0, -0.2, 1.0, -0.1
     latest_ppi_yoy, delta_ppi_yoy, latest_ppi_mom, delta_ppi_mom = 4.1, 0.2, -0.3, -0.8
 
+# 7.2 计算财政数据 KPI
 try:
     if not df_fis_series.empty and len(df_fis_series) >= 1:
         df_fis_sorted = df_fis_series.sort_values(by="date", ascending=True)
@@ -1243,6 +1230,7 @@ except Exception:
     latest_fund_rev, delta_fund_rev = -31.14, 10.88
     latest_fund_exp, delta_fund_exp = -43.66, 32.21
 
+# 7.3 计算金融数据 KPI
 try:
     if not df_fin_series.empty and len(df_fin_series) >= 1:
         df_fin_sorted = df_fin_series.sort_values(by="date", ascending=True)
@@ -1269,20 +1257,66 @@ except Exception:
     latest_m2_yoy, delta_m2_yoy = 8.0, -0.6
     latest_sf_stock_yoy, delta_sf_stock_yoy = 7.4, -0.3
 
+# 7.4 计算经济数据 KPI (制造业PMI、固资投资增速、社零增速、出口同比)
+try:
+    if not df_econ_series.empty and len(df_econ_series) >= 1:
+        df_econ_sorted = df_econ_series.sort_values(by="date", ascending=True)
+        latest_econ = df_econ_sorted.iloc[-1]
+        prev_econ = df_econ_sorted.iloc[-2] if len(df_econ_sorted) >= 2 else latest_econ
+
+        latest_pmi_manuf = float(latest_econ.get("pmi_manuf", 50.3))
+        latest_fai_yoy = float(latest_econ.get("fai_yoy", -11.22))
+        latest_retail_sales_yoy = float(latest_econ.get("retail_sales_yoy", 1.0))
+        latest_export_yoy = float(latest_econ.get("export_yoy", 27.01))
+
+        delta_pmi_manuf = latest_pmi_manuf - float(prev_econ.get("pmi_manuf", latest_pmi_manuf))
+        delta_fai_yoy = latest_fai_yoy - float(prev_econ.get("fai_yoy", latest_fai_yoy))
+        delta_retail_sales_yoy = latest_retail_sales_yoy - float(prev_econ.get("retail_sales_yoy", latest_retail_sales_yoy))
+        delta_export_yoy = latest_export_yoy - float(prev_econ.get("export_yoy", latest_export_yoy))
+    else:
+        latest_pmi_manuf, delta_pmi_manuf = 50.3, 0.3
+        latest_fai_yoy, delta_fai_yoy = -11.22, 1.31
+        latest_retail_sales_yoy, delta_retail_sales_yoy = 1.0, 1.6
+        latest_export_yoy, delta_export_yoy = 27.01, 7.64
+except Exception:
+    latest_pmi_manuf, delta_pmi_manuf = 50.3, 0.3
+    latest_fai_yoy, delta_fai_yoy = -11.22, 1.31
+    latest_retail_sales_yoy, delta_retail_sales_yoy = 1.0, 1.6
+    latest_export_yoy, delta_export_yoy = 27.01, 7.64
+
 # 优先读取原始 Excel 中的 较上月变化
 if not df_deltas.empty:
     delta_map = dict(zip(df_deltas["metric_key"], df_deltas["change_mom"]))
-    if "CPI同比" in delta_map: delta_cpi = delta_map["CPI同比"]
-    if "PPI同比" in delta_map: delta_ppi_yoy = delta_map["PPI同比"]
-    if "PPI环比" in delta_map: delta_ppi_mom = delta_map["PPI环比"]
-    if "公共财政收入" in delta_map: delta_fis_rev = delta_map["公共财政收入"]
-    if "公共财政支出" in delta_map: delta_fis_exp = delta_map["公共财政支出"]
-    if "政府性基金收入" in delta_map: delta_fund_rev = delta_map["政府性基金收入"]
-    if "政府性基金支出" in delta_map: delta_fund_exp = delta_map["政府性基金支出"]
-    if "社融当月新增" in delta_map: delta_sf_inc = delta_map["社融当月新增"]
-    if "信贷当月新增" in delta_map: delta_credit_inc = delta_map["信贷当月新增"]
-    if "M2同比增速" in delta_map: delta_m2_yoy = delta_map["M2同比增速"]
-    if "社融存量同比增速" in delta_map: delta_sf_stock_yoy = delta_map["社融存量同比增速"]
+    if "CPI同比" in delta_map:
+        delta_cpi = delta_map["CPI同比"]
+    if "PPI同比" in delta_map:
+        delta_ppi_yoy = delta_map["PPI同比"]
+    if "PPI环比" in delta_map:
+        delta_ppi_mom = delta_map["PPI环比"]
+    if "公共财政收入" in delta_map:
+        delta_fis_rev = delta_map["公共财政收入"]
+    if "公共财政支出" in delta_map:
+        delta_fis_exp = delta_map["公共财政支出"]
+    if "政府性基金收入" in delta_map:
+        delta_fund_rev = delta_map["政府性基金收入"]
+    if "政府性基金支出" in delta_map:
+        delta_fund_exp = delta_map["政府性基金支出"]
+    if "社融当月新增" in delta_map:
+        delta_sf_inc = delta_map["社融当月新增"]
+    if "信贷当月新增" in delta_map:
+        delta_credit_inc = delta_map["信贷当月新增"]
+    if "M2同比增速" in delta_map:
+        delta_m2_yoy = delta_map["M2同比增速"]
+    if "社融存量同比增速" in delta_map:
+        delta_sf_stock_yoy = delta_map["社融存量同比增速"]
+    if "制造业PMI" in delta_map:
+        delta_pmi_manuf = delta_map["制造业PMI"]
+    if "固资投资增速" in delta_map:
+        delta_fai_yoy = delta_map["固资投资增速"]
+    if "社融增速" in delta_map or "社零增速" in delta_map:
+        delta_retail_sales_yoy = delta_map.get("社零增速", delta_map.get("社融增速", delta_retail_sales_yoy))
+    if "出口同比" in delta_map:
+        delta_export_yoy = delta_map["出口同比"]
 
 def format_kpi_delta(delta, unit="%"):
     """
@@ -1307,10 +1341,70 @@ def format_kpi_delta(delta, unit="%"):
     val_abs = abs(delta)
     if unit == "亿元":
         return d_class, f"{d_icon} {d_sign}{val_abs:,.0f} 亿元 (较上月)"
+    elif unit == "点":
+        return d_class, f"{d_icon} {d_sign}{val_abs:.1f} 点 (较上月)"
     else:
         return d_class, f"{d_icon} {d_sign}{val_abs:.2f}% (较上月)"
 
-# 第一组：通胀数据区 KPI
+# 第一组：经济数据区 KPI（最上方）
+st.markdown('<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📊 最新经济核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+kpi_col_e1, kpi_col_e2, kpi_col_e3, kpi_col_e4 = st.columns(4)
+
+with kpi_col_e1:
+    d_class, d_txt = format_kpi_delta(delta_pmi_manuf, unit="点")
+    st.markdown(f'''
+    <div class="kpi-card" style="border-top-color: #0284c7;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">制造业 PMI</span>
+            <a href="#econ-pmi-chart" target="_self" class="kpi-link">📊 详细数据 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_pmi_manuf:.1f}</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col_e2:
+    d_class, d_txt = format_kpi_delta(delta_fai_yoy)
+    st.markdown(f'''
+    <div class="kpi-card" style="border-top-color: #d97706;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">固资投资增速</span>
+            <a href="#econ-investment-chart" target="_self" class="kpi-link">📊 详细数据 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_fai_yoy:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col_e3:
+    d_class, d_txt = format_kpi_delta(delta_retail_sales_yoy)
+    st.markdown(f'''
+    <div class="kpi-card" style="border-top-color: #10b981;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">社零增速</span>
+            <a href="#econ-retail-chart" target="_self" class="kpi-link">📊 详细数据 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_retail_sales_yoy:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col_e4:
+    d_class, d_txt = format_kpi_delta(delta_export_yoy)
+    st.markdown(f'''
+    <div class="kpi-card" style="border-top-color: #e11d48;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">出口同比</span>
+            <a href="#econ-trade-chart" target="_self" class="kpi-link">📊 详细数据 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_export_yoy:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
+
+# 第二组：通胀数据区 KPI
 st.markdown('<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">📈 最新通胀核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
 kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
 
@@ -1362,64 +1456,6 @@ with kpi_col4:
             <a href="#ppi-chart" target="_self" class="kpi-link">📊 细化图表 ↗</a>
         </div>
         <div class="kpi-value">{latest_ppi_mom:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_txt}</div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
-
-# 第二组：财政数据区 KPI
-st.markdown('<h4 style="color:#0284c7; margin-top:0; margin-bottom:8px; font-size:0.92rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏛️ 最新财政核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
-kpi_col5, kpi_col6, kpi_col7, kpi_col8 = st.columns(4)
-
-with kpi_col5:
-    d_class, d_txt = format_kpi_delta(delta_fis_rev)
-    st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #0284c7;">
-        <div class="kpi-header-row">
-            <span class="kpi-title">公共财政收入增速</span>
-            <a href="#fiscal-rev-exp-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
-        </div>
-        <div class="kpi-value">{latest_fis_rev:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_txt}</div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-with kpi_col6:
-    d_class, d_txt = format_kpi_delta(delta_fis_exp)
-    st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #059669;">
-        <div class="kpi-header-row">
-            <span class="kpi-title">公共财政支出增速</span>
-            <a href="#fiscal-rev-exp-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
-        </div>
-        <div class="kpi-value">{latest_fis_exp:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_txt}</div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-with kpi_col7:
-    d_class, d_txt = format_kpi_delta(delta_fund_rev)
-    st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #d97706;">
-        <div class="kpi-header-row">
-            <span class="kpi-title">政府性基金收入增速</span>
-            <a href="#fiscal-fund-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
-        </div>
-        <div class="kpi-value">{latest_fund_rev:+.2f}%</div>
-        <div class="kpi-delta {d_class}">{d_txt}</div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-with kpi_col8:
-    d_class, d_txt = format_kpi_delta(delta_fund_exp)
-    st.markdown(f'''
-    <div class="kpi-card" style="border-top-color: #db2777;">
-        <div class="kpi-header-row">
-            <span class="kpi-title">政府性基金支出增速</span>
-            <a href="#fiscal-fund-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
-        </div>
-        <div class="kpi-value">{latest_fund_exp:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
@@ -1482,6 +1518,64 @@ with kpi_col12:
     </div>
     ''', unsafe_allow_html=True)
 
+st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
+
+# 第四组：财政数据区 KPI（最末尾，采用紧凑样式减小展示区域）
+st.markdown('<h4 style="color:#059669; margin-top:0; margin-bottom:8px; font-size:0.88rem; font-weight:700; display:flex; align-items:center; gap:6px;">🏛️ 最新财政核心指标（数据点：2026-06）</h4>', unsafe_allow_html=True)
+kpi_col5, kpi_col6, kpi_col7, kpi_col8 = st.columns(4)
+
+with kpi_col5:
+    d_class, d_txt = format_kpi_delta(delta_fis_rev)
+    st.markdown(f'''
+    <div class="kpi-card-compact" style="border-top-color: #0284c7;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">公共财政收入增速</span>
+            <a href="#fiscal-rev-exp-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_fis_rev:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col6:
+    d_class, d_txt = format_kpi_delta(delta_fis_exp)
+    st.markdown(f'''
+    <div class="kpi-card-compact" style="border-top-color: #059669;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">公共财政支出增速</span>
+            <a href="#fiscal-rev-exp-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_fis_exp:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col7:
+    d_class, d_txt = format_kpi_delta(delta_fund_rev)
+    st.markdown(f'''
+    <div class="kpi-card-compact" style="border-top-color: #d97706;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">政府性基金收入增速</span>
+            <a href="#fiscal-fund-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_fund_rev:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with kpi_col8:
+    d_class, d_txt = format_kpi_delta(delta_fund_exp)
+    st.markdown(f'''
+    <div class="kpi-card-compact" style="border-top-color: #db2777;">
+        <div class="kpi-header-row">
+            <span class="kpi-title">政府性基金支出增速</span>
+            <a href="#fiscal-fund-chart" target="_self" class="kpi-link">🏛️ 细化图表 ↗</a>
+        </div>
+        <div class="kpi-value">{latest_fund_exp:+.2f}%</div>
+        <div class="kpi-delta {d_class}">{d_txt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
 st.markdown('<div style="margin-bottom: 16px;"></div>', unsafe_allow_html=True)
 
 
@@ -1494,7 +1588,152 @@ with col_left:
     st.markdown('<div class="obs-card">', unsafe_allow_html=True)
     st.markdown('<h3 style="color:#0f172a; margin-top:0; font-size:1.1rem; margin-bottom:16px; font-weight: 800; letter-spacing:0.5px;">📈 26630 宏观数据全量深度可视化舱</h3>', unsafe_allow_html=True)
 
-    # ==================== 第一板块：通胀数据区 ====================
+    # ==================== 第一板块：经济数据区 ====================
+    st.markdown('<div style="border-left: 3px solid #0284c7; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#0284c7; margin:0; font-size:1.0rem; font-weight:700;">🎯 经济数据区（宏观增长、工业投资与内外需监控）</h4></div>', unsafe_allow_html=True)
+
+    # 1. PMI 景气指数 (Anchor: #econ-pmi-chart)
+    st.markdown('<div id="econ-pmi-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:8px; margin-bottom:5px; font-weight:500;'>📊 制造业 PMI 及分项 (生产/新订单/新出口订单) 与非制造业 PMI 走势</p>", unsafe_allow_html=True)
+    if not df_econ_series_filtered.empty and "pmi_manuf" in df_econ_series_filtered.columns:
+        df_pmi_display = df_econ_series_filtered.rename(columns={
+            "pmi_manuf": "制造业PMI",
+            "pmi_manuf_prod": "其中:生产",
+            "pmi_manuf_orders": "新订单",
+            "pmi_manuf_export_orders": "新出口订单",
+            "pmi_non_manuf": "非制造业PMI"
+        })
+        fig_pmi = render_dual_axis_line_chart(
+            df_pmi_display,
+            "date",
+            ["制造业PMI", "其中:生产", "新订单", "新出口订单", "非制造业PMI"],
+            colors=["#0284c7", "#059669", "#d97706", "#e11d48", "#7c3aed"],
+            primary_y_title="指数 (点)"
+        )
+        st.plotly_chart(fig_pmi, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 2. 固定资产投资与房地产 (Anchor: #econ-investment-chart)
+    st.markdown('<div id="econ-investment-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 固定资产投资增速 (地产、基建、制造业) 走势</p>", unsafe_allow_html=True)
+    if not df_econ_series_filtered.empty and "fai_yoy" in df_econ_series_filtered.columns:
+        df_fai_display = df_econ_series_filtered.rename(columns={
+            "fai_yoy": "固定资产投资增速 (%)",
+            "fai_realestate_yoy": "地产投资 (%)",
+            "fai_infra_yoy": "基建投资 (%)",
+            "fai_manuf_yoy": "制造业投资 (%)"
+        })
+        fig_fai = render_dual_axis_line_chart(
+            df_fai_display,
+            "date",
+            ["固定资产投资增速 (%)", "地产投资 (%)", "基建投资 (%)", "制造业投资 (%)"],
+            colors=["#d97706", "#f43f5e", "#00f0ff", "#10b981"],
+            primary_y_title="增速 (%)"
+        )
+        st.plotly_chart(fig_fai, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:15px;'></div>", unsafe_allow_html=True)
+
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 房地产开发 (销售面积、新开工与竣工增速)</p>", unsafe_allow_html=True)
+    if not df_econ_series_filtered.empty and "property_sales_area_yoy" in df_econ_series_filtered.columns:
+        df_prop_display = df_econ_series_filtered.rename(columns={
+            "property_sales_area_yoy": "销售面积增速 (%)",
+            "property_starts_yoy": "新开工增速 (%)",
+            "property_completions_yoy": "竣工增速 (%)"
+        })
+        fig_prop = render_dual_axis_line_chart(
+            df_prop_display,
+            "date",
+            ["销售面积增速 (%)", "新开工增速 (%)", "竣工增速 (%)"],
+            colors=["#ec4899", "#8b5cf6", "#06b6d4"],
+            primary_y_title="增速 (%)"
+        )
+        st.plotly_chart(fig_prop, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 3. 消费与就业 (Anchor: #econ-retail-chart)
+    st.markdown('<div id="econ-retail-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 社会消费品零售总额增速 (含限额以上) 与 城镇调查失业率</p>", unsafe_allow_html=True)
+    if not df_econ_series_filtered.empty and "retail_sales_yoy" in df_econ_series_filtered.columns:
+        df_retail_display = df_econ_series_filtered.rename(columns={
+            "retail_sales_yoy": "社零增速 (%)",
+            "retail_sales_above_size_yoy": "其中:限额以上 (%)",
+            "unemployment_rate": "城镇调查失业率 (%)"
+        })
+        fig_retail = render_dual_axis_line_chart(
+            df_retail_display,
+            "date",
+            ["社零增速 (%)", "其中:限额以上 (%)", "城镇调查失业率 (%)"],
+            colors=["#10b981", "#34d399", "#f59e0b"],
+            primary_y_title="社零增速 (%)",
+            secondary_y_title="失业率 (%)"
+        )
+        st.plotly_chart(fig_retail, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 4. 进出口贸易 (Anchor: #econ-trade-chart)
+    st.markdown('<div id="econ-trade-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 出口与进口同比增速 及 贸易差额</p>", unsafe_allow_html=True)
+    if not df_econ_series_filtered.empty and "export_yoy" in df_econ_series_filtered.columns:
+        df_trade_display = df_econ_series_filtered.rename(columns={
+            "export_yoy": "出口同比 (%)",
+            "import_yoy": "进口同比 (%)",
+            "trade_balance": "贸易差额 (亿美元)"
+        })
+        fig_trade = render_dual_axis_line_chart(
+            df_trade_display,
+            "date",
+            ["出口同比 (%)", "进口同比 (%)", "贸易差额 (亿美元)"],
+            colors=["#e11d48", "#38bdf8", "#fbbf24"],
+            primary_y_title="进出口同比 (%)",
+            secondary_y_title="贸易差额 (亿美元)"
+        )
+        st.plotly_chart(fig_trade, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 5. 工业生产与企业效益 (Anchor: #econ-industry-chart)
+    st.markdown('<div id="econ-industry-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 工业增加值、服务业生产指数与规上工业企业利润增速</p>", unsafe_allow_html=True)
+    if not df_econ_series_filtered.empty and "industrial_gva_yoy" in df_econ_series_filtered.columns:
+        df_ind_display = df_econ_series_filtered.rename(columns={
+            "industrial_gva_yoy": "工增同比 (%)",
+            "service_index_yoy": "服务业生产指数同比 (%)",
+            "profit_yoy": "规上工业企业利润同比 (%)",
+            "revenue_yoy": "营业收入同比 (%)"
+        })
+        fig_ind = render_dual_axis_line_chart(
+            df_ind_display,
+            "date",
+            ["工增同比 (%)", "服务业生产指数同比 (%)", "规上工业企业利润同比 (%)", "营业收入同比 (%)"],
+            colors=["#0284c7", "#a78bfa", "#10b981", "#f59e0b"],
+            primary_y_title="同比 (%)"
+        )
+        st.plotly_chart(fig_ind, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+    # 6. GDP 季度经济增长 (Anchor: #econ-gdp-chart)
+    st.markdown('<div id="econ-gdp-chart"></div>', unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 季度 GDP 实际同比与环比增速走势</p>", unsafe_allow_html=True)
+    if not df_gdp_series_filtered.empty and "gdp_yoy" in df_gdp_series_filtered.columns:
+        df_gdp_display = df_gdp_series_filtered.rename(columns={
+            "gdp_yoy": "GDP实际同比 (%)",
+            "gdp_mom": "GDP环比增速 (%)"
+        })
+        fig_gdp = render_dual_axis_line_chart(
+            df_gdp_display,
+            "quarter",
+            ["GDP实际同比 (%)", "GDP环比增速 (%)"],
+            colors=["#0284c7", "#fbbf24"],
+            primary_y_title="GDP同比 (%)",
+            secondary_y_title="GDP环比 (%)"
+        )
+        st.plotly_chart(fig_gdp, use_container_width=True, config={'displayModeBar': False})
+
+    st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
     st.markdown('<div style="border-left: 3px solid #00f0ff; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#00f0ff; margin:0; font-size:1.0rem; font-weight:700;">🎯 通胀数据区（CPI 与 PPI 深度剖析）</h4></div>', unsafe_allow_html=True)
 
     # 1. CPI 综合与核心物价同比趋势走势 (Line)

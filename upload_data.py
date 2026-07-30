@@ -471,7 +471,72 @@ def import_inflation_and_fiscal_to_db():
             if records_fin:
                 df_fin_series = pd.DataFrame(records_fin).sort_values(by="date", ascending=True).reset_index(drop=True)
 
-        # 4. 提取较上月变化 (Delta changes)
+        # 4. 提取经济数据区 (Columns 47..)
+        df_econ_series = pd.DataFrame()
+        df_gdp_series = pd.DataFrame()
+        if df.shape[1] >= 47:
+            # 4.1 月度经济指标数据提取
+            econ_dates = []
+            for c in range(47, df.shape[1]):
+                d_val = df.iloc[4, c]
+                if pd.notna(d_val):
+                    try:
+                        econ_dates.append((c, pd.to_datetime(d_val).strftime("%Y-%m-%d")))
+                    except Exception:
+                        pass
+            records_econ = []
+            for col_i, dt in econ_dates:
+                rec = {
+                    "date": dt,
+                    "industrial_gva_yoy": pd.to_numeric(df.iloc[5, col_i], errors="coerce"),
+                    "industrial_gva_mom": pd.to_numeric(df.iloc[6, col_i], errors="coerce"),
+                    "service_index_yoy": pd.to_numeric(df.iloc[7, col_i], errors="coerce"),
+                    "pmi_manuf": pd.to_numeric(df.iloc[8, col_i], errors="coerce"),
+                    "pmi_manuf_prod": pd.to_numeric(df.iloc[9, col_i], errors="coerce"),
+                    "pmi_manuf_orders": pd.to_numeric(df.iloc[10, col_i], errors="coerce"),
+                    "pmi_manuf_export_orders": pd.to_numeric(df.iloc[11, col_i], errors="coerce"),
+                    "pmi_non_manuf": pd.to_numeric(df.iloc[12, col_i], errors="coerce"),
+                    "fai_yoy": pd.to_numeric(df.iloc[13, col_i], errors="coerce"),
+                    "fai_realestate_yoy": pd.to_numeric(df.iloc[14, col_i], errors="coerce"),
+                    "fai_infra_yoy": pd.to_numeric(df.iloc[15, col_i], errors="coerce"),
+                    "fai_manuf_yoy": pd.to_numeric(df.iloc[16, col_i], errors="coerce"),
+                    "retail_sales_yoy": pd.to_numeric(df.iloc[17, col_i], errors="coerce"),
+                    "retail_sales_above_size_yoy": pd.to_numeric(df.iloc[18, col_i], errors="coerce"),
+                    "property_sales_area_yoy": pd.to_numeric(df.iloc[19, col_i], errors="coerce"),
+                    "property_starts_yoy": pd.to_numeric(df.iloc[20, col_i], errors="coerce"),
+                    "property_completions_yoy": pd.to_numeric(df.iloc[21, col_i], errors="coerce"),
+                    "unemployment_rate": pd.to_numeric(df.iloc[22, col_i], errors="coerce"),
+                    "export_yoy": pd.to_numeric(df.iloc[23, col_i], errors="coerce"),
+                    "import_yoy": pd.to_numeric(df.iloc[24, col_i], errors="coerce"),
+                    "trade_balance": pd.to_numeric(df.iloc[25, col_i], errors="coerce"),
+                    "revenue_yoy": pd.to_numeric(df.iloc[34, col_i], errors="coerce") if df.shape[0] > 34 else None,
+                    "profit_yoy": pd.to_numeric(df.iloc[35, col_i], errors="coerce") if df.shape[0] > 35 else None,
+                    "inventory_yoy": pd.to_numeric(df.iloc[36, col_i], errors="coerce") if df.shape[0] > 36 else None,
+                }
+                records_econ.append(rec)
+            if records_econ:
+                df_econ_series = pd.DataFrame(records_econ).sort_values(by="date", ascending=True).reset_index(drop=True)
+
+            # 4.2 季度 GDP 增长数据提取
+            gdp_dates = []
+            for c in range(47, df.shape[1]):
+                q_val = df.iloc[1, c]
+                if pd.notna(q_val) and "Q" in str(q_val):
+                    gdp_dates.append((c, str(q_val).strip()))
+            records_gdp = []
+            for col_i, q_str in gdp_dates:
+                rec = {
+                    "quarter": q_str,
+                    "gdp_yoy": pd.to_numeric(df.iloc[2, col_i], errors="coerce"),
+                    "gdp_mom": pd.to_numeric(df.iloc[3, col_i], errors="coerce"),
+                }
+                records_gdp.append(rec)
+            if records_gdp:
+                df_gdp = pd.DataFrame(records_gdp)
+                df_gdp["sort_key"] = df_gdp["quarter"].apply(lambda q: "20" + q if len(q) == 4 else q)
+                df_gdp_series = df_gdp.sort_values(by="sort_key", ascending=True).drop(columns=["sort_key"]).reset_index(drop=True)
+
+        # 5. 提取较上月变化 (Delta changes)
         kpi_deltas = {}
         for r in range(2, 16):
             name = str(df.iloc[r, 0]).strip()
@@ -494,14 +559,27 @@ def import_inflation_and_fiscal_to_db():
             kpi_deltas["M1同比增速"] = float(latest_fin.get("m1_yoy", 0.0)) - float(prev_fin.get("m1_yoy", 0.0))
             kpi_deltas["社融存量同比增速"] = float(latest_fin.get("sf_stock_yoy", 0.0)) - float(prev_fin.get("sf_stock_yoy", 0.0))
 
+        # 计算经济数据核心指标最新月与前一个月的环比 Delta
+        if not df_econ_series.empty and len(df_econ_series) >= 2:
+            latest_econ = df_econ_series.iloc[-1]
+            prev_econ = df_econ_series.iloc[-2]
+            kpi_deltas["制造业PMI"] = float(latest_econ.get("pmi_manuf", 0.0)) - float(prev_econ.get("pmi_manuf", 0.0))
+            kpi_deltas["固资投资增速"] = float(latest_econ.get("fai_yoy", 0.0)) - float(prev_econ.get("fai_yoy", 0.0))
+            kpi_deltas["社零增速"] = float(latest_econ.get("retail_sales_yoy", 0.0)) - float(prev_econ.get("retail_sales_yoy", 0.0))
+            kpi_deltas["出口同比"] = float(latest_econ.get("export_yoy", 0.0)) - float(prev_econ.get("export_yoy", 0.0))
+
         df_deltas = pd.DataFrame([{"metric_key": k, "change_mom": v} for k, v in kpi_deltas.items()])
 
-        # 5. 写入 SQLite
+        # 6. 写入 SQLite
         conn = sqlite3.connect(DB_NAME)
         df_inf_series.to_sql("dashboard_inflation_series", conn, if_exists="replace", index=False)
         df_fis_series.to_sql("dashboard_fiscal_series", conn, if_exists="replace", index=False)
         if not df_fin_series.empty:
             df_fin_series.to_sql("dashboard_finance_series", conn, if_exists="replace", index=False)
+        if not df_econ_series.empty:
+            df_econ_series.to_sql("dashboard_economic_series", conn, if_exists="replace", index=False)
+        if not df_gdp_series.empty:
+            df_gdp_series.to_sql("dashboard_gdp_series", conn, if_exists="replace", index=False)
         df_deltas.to_sql("dashboard_kpi_deltas", conn, if_exists="replace", index=False)
 
         # 兼容 dashboard_cpi_compare
@@ -509,7 +587,7 @@ def import_inflation_and_fiscal_to_db():
         cpi_compat.to_sql("dashboard_cpi_compare", conn, if_exists="replace", index=False)
 
         conn.close()
-        print("[Database] 通胀、财政与金融数据 (dashboard_inflation_series, dashboard_fiscal_series, dashboard_finance_series) 同步至 SQLite 成功！")
+        print("[Database] 通胀、财政、金融与经济数据 (dashboard_inflation_series, dashboard_fiscal_series, dashboard_finance_series, dashboard_economic_series, dashboard_gdp_series) 同步至 SQLite 成功！")
     except Exception as e:
         print(f"[Database] 解析通胀、财政与金融数据区失败: {e}")
 
