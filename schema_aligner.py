@@ -568,11 +568,12 @@ def run_alignment_pipeline(excel_file, force=False):
 
         # 触发 26630 全量数据（基础、通胀、财政与 12 个原生嵌入图表）全自动同步
         try:
-            from upload_data import import_excel_to_db, import_inflation_and_fiscal_to_db, import_excel_embedded_charts_to_db, import_econ_overview_series_to_db
+            from upload_data import import_excel_to_db, import_inflation_and_fiscal_to_db, import_excel_embedded_charts_to_db, import_econ_overview_series_to_db, generate_and_save_macro_analysis
             import_excel_to_db()
             import_inflation_and_fiscal_to_db()
             import_excel_embedded_charts_to_db()
             import_econ_overview_series_to_db()
+            generate_and_save_macro_analysis()  # 公众号文章列表入库 (MCP 不可用时从 wechat_articles_cache.json 回退)
         except Exception as e_inf:
             print(f"[Pipeline] 26630 数据同步提示: {e_inf}")
 

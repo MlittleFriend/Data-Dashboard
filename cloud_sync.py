@@ -23,7 +23,7 @@ from datetime import datetime
 SYNC_FILES = [
     # 数据产物
     "26630.xlsx", "schema_lock.json", "schema_snapshot.json",
-    "econ_overview_cache.json",
+    "econ_overview_cache.json", "wechat_articles_cache.json",
     # 看板核心代码
     "App.py", "schema_aligner.py", "cloud_sync.py", "upload_data.py",
     "news_sanitizer.py", "agent_skill_kernel.py", "requirements.txt",

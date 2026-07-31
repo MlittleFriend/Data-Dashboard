@@ -139,7 +139,8 @@ def fetch_wechat_articles():
             print(f"[进门 MCP] 成功从「陈兴宏观研究」微信公众号检索到 {len(articles)} 篇最新宏观研报！")
             return articles[:10]
     except Exception as e:
-        print(f"[进门 MCP 实时抓取警告] 远程拉取失败, 启动降级静态逻辑: {e}")
+        print(f"[进门 MCP 实时抓取警告] 远程拉取失败: {e}")
+        return None
 
     # Fallback default 10 static links if offline
     fallback_urls = [
@@ -163,11 +164,12 @@ def generate_and_save_macro_analysis():
     """
     3. 组装「陈兴宏观研究」微信公众号最近 10 篇研报超链接列表入库
     """
-    articles = fetch_wechat_articles()
+    articles = fetch_wechat_articles() or _load_wechat_articles_cache() or _static_wechat_articles_fallback()
     if not articles:
         return
 
     top_10 = articles[:10]
+    _save_wechat_articles_cache(top_10)
 
     rows_html = []
     for idx, item in enumerate(top_10):
@@ -831,6 +833,46 @@ def import_econ_overview_series_to_db():
         print(f"[Database] 经济数据一览原图数据同步成功 (CPI长历史 {len(cpi_records)} 行, PMI新订单 {len(pmi_records)} 行)！")
     except Exception as e:
         print(f"[Database] 经济数据一览原图数据入库失败: {e}")
+
+
+WECHAT_ARTICLES_CACHE_JSON = "wechat_articles_cache.json"
+
+
+def _load_wechat_articles_cache():
+    """从 wechat_articles_cache.json 读取最近一次成功抓取的文章列表（云端重建/MCP 不可用时的回退）"""
+    try:
+        if os.path.exists(WECHAT_ARTICLES_CACHE_JSON):
+            with open(WECHAT_ARTICLES_CACHE_JSON, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            articles = data.get("articles", [])
+            if articles:
+                print(f"[公众号列表] MCP 不可用，已从 {WECHAT_ARTICLES_CACHE_JSON} 回退加载 {len(articles)} 篇文章")
+                return articles
+    except Exception as e:
+        print(f"[公众号列表] 缓存回退读取失败: {e}")
+    return None
+
+
+def _save_wechat_articles_cache(articles):
+    """将最新文章列表落盘 wechat_articles_cache.json（随云端同步推送，供云端重建）"""
+    try:
+        with open(WECHAT_ARTICLES_CACHE_JSON, "w", encoding="utf-8") as f:
+            json.dump({"articles": articles}, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"[公众号列表] 缓存落盘失败: {e}")
+
+
+def _static_wechat_articles_fallback():
+    """最终兜底静态文章列表（MCP 与缓存均不可用时保证界面有可点击内容）"""
+    fallback_urls = [
+        ("2026-07-19", "韩国央行转向加息", "https://mp.weixin.qq.com/s/NJq0AEpCbSzP78AwvTDBEQ"),
+        ("2026-07-16", "信用降温趋势延续——2026年6月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
+        ("2026-07-12", "美国服务业价格压力缓解", "https://mp.weixin.qq.com/s/28vPWqmtoH6TOkXU7LRFEw"),
+        ("2026-07-05", "全球储蓄——由过剩到短缺？", "https://mp.weixin.qq.com/s/tag8klgGoAscSChRCvJdow"),
+        ("2026-06-14", "没了点阵图，市场如何反应？", "https://mp.weixin.qq.com/s/CXtO0LxA0U9gYOFzZ2CH-Q"),
+        ("2026-06-13", "M1同比何以反弹？——2026年5月金融数据解读", "https://mp.weixin.qq.com/s/7MYZa-P8amU5OkntRg_rmQ"),
+    ]
+    return [{"id": i + 1, "publish_time": dt, "content": title, "url": u} for i, (dt, title, u) in enumerate(fallback_urls)]
 
 
 if __name__ == "__main__":
