@@ -1688,7 +1688,7 @@ with kpi_col_e3:
                 <span>进口当月同比:</span> <b style="color: #0f172a;">{import_yoy:+.2f}%</b>
             </div>
             <div style="display: flex; justify-content: space-between;">
-                <span>当月贸易差额:</span> <b style="color: #0f172a;">{trade_bal:,.1f} 亿$</b>
+                <span>当月贸易差额:</span> <b style="color: #0f172a;">{trade_bal:,.1f} 亿美元</b>
             </div>
         </div>
         """, unsafe_allow_html=True)
