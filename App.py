@@ -2092,3 +2092,10 @@ with col_right:
 
     render_live_feed()
 
+    # 2. 公众号研报直达列表 (WeChat Analyses)
+    if target_macro_html:
+        # 直接嵌入从公众号同步入库的深色渐变底卡 HTML
+        st.markdown(target_macro_html, unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="color:#64748b; text-align:center; padding:20px; font-size:0.85rem;">📰 公众号研报列表同步中，请稍后刷新…</div>', unsafe_allow_html=True)
+
