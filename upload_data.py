@@ -718,10 +718,120 @@ def main():
 
     # 构建并同步底部手动维护的文章传送门列表
     generate_and_save_macro_analysis()
+    import_econ_overview_series_to_db()  # 解析「经济数据一览」原图数据源 (CPI长历史 + PMI新订单)
 
     print("\n[OK] 数据源加工流已全盘就绪！")
 
 
+# __main__ 入口已移至文件末尾 (确保 import_econ_overview_series_to_db 定义先于调用)
+
+
+ECON_OVERVIEW_CACHE_JSON = "econ_overview_cache.json"
+
+
+def _find_econ_overview_file():
+    """定位「经济数据更新」目录下最新的经济数据一览底稿（排除 Excel 临时锁文件）"""
+    import glob
+    candidates = glob.glob(os.path.join("经济数据更新", "*经济数据一览*.xlsx"))
+    candidates = [f for f in candidates if not os.path.basename(f).startswith("~$")]
+    if not candidates:
+        return None
+    return max(candidates, key=os.path.getmtime)
+
+
+def import_econ_overview_series_to_db():
+    """
+    6. 解析「经济数据一览」底稿中两张原图的数据源并入库：
+       - CPI 表 L/N/O 列: CPI当月同比 & 核心CPI当月同比长历史 (2018 年中起, 图: CPI和核心CPI当月同比)
+       - PMI 表 B/D 列: 制造业PMI新订单月度长历史 (图: 全国制造业PMI新订单, 按年份叠放季节图)
+    解析成功时同步落盘 econ_overview_cache.json（随云端同步推送）；
+    本地底稿不可用（云端容器/文件被占用）时从该 JSON 回退重建。
+    """
+    def _to_date_str(val):
+        if isinstance(val, pd.Timestamp) or hasattr(val, "strftime"):
+            return val.strftime("%Y-%m-%d")
+        try:
+            return pd.to_datetime(val).strftime("%Y-%m-%d")
+        except Exception:
+            return None
+
+    cpi_records, pmi_records = [], []
+    src = _find_econ_overview_file()
+
+    if src:
+        tmp_src = src + ".pipeline.tmp.xlsx"
+        try:
+            import shutil
+            shutil.copy2(src, tmp_src)  # 复制影像读取，规避底稿被 Excel 占用时的锁
+            wb = openpyxl.load_workbook(tmp_src, data_only=True)
+
+            if "CPI" in wb.sheetnames:
+                ws = wb["CPI"]
+                for r in range(9, 109):  # 原图数据区 CPI!L9:L108 / N9:N108 / O9:O108
+                    raw_d = ws.cell(row=r, column=12).value           # L 列: 日期
+                    d = _to_date_str(raw_d) if hasattr(raw_d, "strftime") else None
+                    cpi_v = pd.to_numeric(ws.cell(row=r, column=14).value, errors="coerce")  # N 列: CPI当月同比
+                    core_v = pd.to_numeric(ws.cell(row=r, column=15).value, errors="coerce")  # O 列: 核心CPI当月同比
+                    if d and pd.notna(cpi_v) and pd.notna(core_v):
+                        cpi_records.append({"date": d, "cpi_yoy": float(cpi_v), "core_cpi_yoy": float(core_v)})
+                cpi_records.sort(key=lambda x: x["date"])
+
+            if "PMI" in wb.sheetnames:
+                ws = wb["PMI"]
+                seen_dates = set()  # 主数据块在前，后续小表存在重复年份，按日期去重保留首次出现
+                for r in range(1, ws.max_row + 1):
+                    raw_d = ws.cell(row=r, column=2).value            # B 列: 日期
+                    d = _to_date_str(raw_d) if hasattr(raw_d, "strftime") else None
+                    v = pd.to_numeric(ws.cell(row=r, column=4).value, errors="coerce")  # D 列: 制造业PMI:新订单
+                    if d and pd.notna(v) and d not in seen_dates:
+                        seen_dates.add(d)
+                        pmi_records.append({"date": d, "pmi_new_orders": float(v)})
+                pmi_records.sort(key=lambda x: x["date"])
+
+            wb.close()
+        except Exception as e:
+            print(f"[经济数据一览] 原图数据源解析失败: {e}")
+        finally:
+            if os.path.exists(tmp_src):
+                try:
+                    os.remove(tmp_src)
+                except Exception:
+                    pass
+
+    if cpi_records and pmi_records:
+        try:
+            with open(ECON_OVERVIEW_CACHE_JSON, "w", encoding="utf-8") as f:
+                json.dump({
+                    "cpi_core_history": cpi_records,
+                    "pmi_new_orders_history": pmi_records,
+                }, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"[经济数据一览] 缓存 JSON 落盘失败: {e}")
+    elif os.path.exists(ECON_OVERVIEW_CACHE_JSON):
+        try:
+            with open(ECON_OVERVIEW_CACHE_JSON, "r", encoding="utf-8") as f:
+                cache = json.load(f)
+            cpi_records = cache.get("cpi_core_history", [])
+            pmi_records = cache.get("pmi_new_orders_history", [])
+            print("[经济数据一览] 本地底稿不可用，已从 econ_overview_cache.json 回退重建")
+        except Exception as e:
+            print(f"[经济数据一览] 缓存 JSON 回退读取失败: {e}")
+
+    if not cpi_records and not pmi_records:
+        print("[经济数据一览] 无可用原图数据，保留库内既有数据")
+        return
+
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        if cpi_records:
+            pd.DataFrame(cpi_records).to_sql("dashboard_cpi_core_history", conn, if_exists="replace", index=False)
+        if pmi_records:
+            pd.DataFrame(pmi_records).to_sql("dashboard_pmi_new_orders_history", conn, if_exists="replace", index=False)
+        conn.close()
+        print(f"[Database] 经济数据一览原图数据同步成功 (CPI长历史 {len(cpi_records)} 行, PMI新订单 {len(pmi_records)} 行)！")
+    except Exception as e:
+        print(f"[Database] 经济数据一览原图数据入库失败: {e}")
+
+
 if __name__ == "__main__":
     main()
-

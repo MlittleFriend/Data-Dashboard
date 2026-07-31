@@ -612,6 +612,110 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
     return fig
 
 
+def render_cpi_core_history_chart(df):
+    """CPI 和核心 CPI 当月同比长历史走势 (口径: 经济数据一览 CPI 表 N/O 列, 2018 年中起, 直线连接)"""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df["date"], y=df["cpi_yoy"], mode="lines", name="CPI当月同比",
+        line=dict(color="#c0504d", width=2, shape="linear")
+    ))
+    fig.add_trace(go.Scatter(
+        x=df["date"], y=df["core_cpi_yoy"], mode="lines", name="核心CPI当月同比",
+        line=dict(color="#d9a441", width=2, shape="linear")
+    ))
+    fig.update_layout(
+        template="plotly_white",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        height=390,
+        margin=dict(l=12, r=12, t=15, b=65),
+        legend=dict(
+            orientation="h", yanchor="top", y=-0.16, xanchor="center", x=0.5,
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#0f172a", size=10.5, family="Outfit, Noto Sans SC, sans-serif")
+        ),
+        hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor="rgba(255, 255, 255, 0.95)", font_color="#0f172a",
+            font_size=11, font_family="Outfit, Noto Sans SC, sans-serif"
+        )
+    )
+    fig.update_yaxes(
+        title_text="同比 (%)",
+        title_font=dict(color="#0f172a", size=11, family="Outfit, Noto Sans SC, sans-serif"),
+        tickfont=dict(color="#0f172a", size=10),
+        showgrid=True, gridcolor="rgba(0, 0, 0, 0.08)",
+        zeroline=True, zerolinecolor="rgba(0, 0, 0, 0.25)",
+        linecolor="rgba(0, 0, 0, 0.15)"
+    )
+    fig.update_xaxes(
+        showgrid=True, gridcolor="rgba(0, 0, 0, 0.08)",
+        zeroline=False, linecolor="rgba(0, 0, 0, 0.15)",
+        tickfont=dict(color="#0f172a", size=10)
+    )
+    return fig
+
+
+def render_pmi_new_orders_seasonal_chart(df):
+    """全国制造业 PMI 新订单季节性叠放图 (口径: 经济数据一览 PMI 表 D 列, 按年份 2018 起叠放, X 轴 1-12 月)"""
+    d = df.copy()
+    d["year"] = d["date"].astype(str).str.slice(0, 4)
+    d["month"] = d["date"].astype(str).str.slice(5, 7).astype(int)
+    d = d[d["year"] >= "2018"]
+    years = sorted(d["year"].unique())
+    if not years:
+        return None
+    latest_year = years[-1]
+    # 历年配色贴近原图: 藏青/明黄/青蓝/翠绿/紫/浅绿/品红/橄榄棕
+    palette = ["#1f2a5c", "#f2c500", "#29b6f6", "#43a047", "#8e44ad", "#9ccc65", "#d81b60", "#8d6e63"]
+    fig = go.Figure()
+    for idx, y in enumerate(years):
+        sub = d[d["year"] == y].sort_values("month")
+        is_latest = (y == latest_year)
+        fig.add_trace(go.Scatter(
+            x=[f"{m}月" for m in sub["month"]],
+            y=sub["pmi_new_orders"],
+            mode="lines+markers" if is_latest else "lines",
+            name=y,
+            line=dict(
+                color="#d62728" if is_latest else palette[idx % len(palette)],
+                width=3 if is_latest else 1.8,
+                shape="linear"
+            ),
+            marker=dict(symbol="triangle-up", size=8, color="#d62728") if is_latest else dict(size=0),
+        ))
+    fig.update_layout(
+        template="plotly_white",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        height=390,
+        margin=dict(l=12, r=12, t=15, b=65),
+        legend=dict(
+            orientation="h", yanchor="top", y=-0.16, xanchor="center", x=0.5,
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#0f172a", size=10.5, family="Outfit, Noto Sans SC, sans-serif")
+        ),
+        hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor="rgba(255, 255, 255, 0.95)", font_color="#0f172a",
+            font_size=11, font_family="Outfit, Noto Sans SC, sans-serif"
+        )
+    )
+    fig.update_yaxes(
+        title_text="指数 (点)",
+        title_font=dict(color="#0f172a", size=11, family="Outfit, Noto Sans SC, sans-serif"),
+        tickfont=dict(color="#0f172a", size=10),
+        showgrid=True, gridcolor="rgba(0, 0, 0, 0.08)",
+        zeroline=False, linecolor="rgba(0, 0, 0, 0.15)"
+    )
+    fig.update_xaxes(
+        showgrid=True, gridcolor="rgba(0, 0, 0, 0.08)",
+        zeroline=False, linecolor="rgba(0, 0, 0, 0.15)",
+        tickfont=dict(color="#0f172a", size=10)
+    )
+    return fig
+
+
 # 26630 底稿中未命名内嵌图表（Chart 13-20）的展示标题补全映射
 EMBEDDED_CHART_TITLE_OVERRIDES = {
     13: "社融分项同比多增（亿元）",
@@ -747,7 +851,7 @@ def load_data(current_date_str):
     except Exception as e:
         # 控制论防御：如果数据库连接失败，构建空的 DataFrame 兜底
         print(f"[Fallback DB] Connection failed: {e}")
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), ""
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), "", pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     # 2.1 Excel 数字数据
     try:
@@ -846,6 +950,29 @@ def load_data(current_date_str):
     except Exception:
         df_embedded_charts = pd.DataFrame()
 
+    # 经济数据一览原图数据: CPI/核心CPI 长历史 & PMI 新订单月度长历史
+    try:
+        df_cpi_core_hist = pd.read_sql_query("SELECT * FROM dashboard_cpi_core_history", conn)
+    except Exception:
+        df_cpi_core_hist = pd.DataFrame(columns=["date", "cpi_yoy", "core_cpi_yoy"])
+
+    try:
+        df_pmi_orders_hist = pd.read_sql_query("SELECT * FROM dashboard_pmi_new_orders_history", conn)
+    except Exception:
+        df_pmi_orders_hist = pd.DataFrame(columns=["date", "pmi_new_orders"])
+
+    # 表缺失/为空时从 econ_overview_cache.json 兜底 (云端冷启动重建路径)
+    if (df_cpi_core_hist.empty or df_pmi_orders_hist.empty) and os.path.exists("econ_overview_cache.json"):
+        try:
+            with open("econ_overview_cache.json", "r", encoding="utf-8") as f:
+                _eoc = json.load(f)
+            if df_cpi_core_hist.empty and _eoc.get("cpi_core_history"):
+                df_cpi_core_hist = pd.DataFrame(_eoc["cpi_core_history"])
+            if df_pmi_orders_hist.empty and _eoc.get("pmi_new_orders_history"):
+                df_pmi_orders_hist = pd.DataFrame(_eoc["pmi_new_orders_history"])
+        except Exception:
+            pass
+
     # 2.2 顶部新浪 7x24 实时快讯
     try:
         df_news = pd.read_sql_query(
@@ -888,7 +1015,7 @@ def load_data(current_date_str):
     if not df_econ_series.empty and "date" in df_econ_series.columns:
         df_econ_series = df_econ_series[df_econ_series["date"] >= limit_date]
 
-    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_econ_series, df_gdp_series, df_deltas, df_embedded_charts
+    return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_econ_series, df_gdp_series, df_deltas, df_embedded_charts, df_cpi_core_hist, df_pmi_orders_hist
 
 
 
@@ -1095,7 +1222,7 @@ except Exception as e:
 
 # 4. 强制击穿 Streamlit 全量缓存，并以当前日期作为缓存锚点重新拉取
 today_str = datetime.now().strftime("%Y-%m-%d")
-df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_econ_series, df_gdp_series, df_deltas, df_embedded_charts = load_data(today_str)
+df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_econ_series, df_gdp_series, df_deltas, df_embedded_charts, df_cpi_core_hist, df_pmi_orders_hist = load_data(today_str)
 
 # 使用全量真实数据时序呈现折线图
 df_cpi_compare_filtered = df_cpi_compare
@@ -1860,32 +1987,19 @@ with col_left:
         st.plotly_chart(fig_20, use_container_width=True, config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-    # 5. CPI 和核心 CPI 当月同比 (底稿经济数据区折线图，数据源: dashboard_inflation_series)
+    # 5. CPI 和核心 CPI 当月同比 (经济数据一览原图口径: CPI 表 N/O 列长历史, 2018 年中起)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 CPI 和核心 CPI 当月同比（%）</p>", unsafe_allow_html=True)
-    if not df_inf_series_filtered.empty and "cpi_yoy" in df_inf_series_filtered.columns:
-        df_cpi_display = df_inf_series_filtered.rename(columns={"cpi_yoy": "CPI当月同比 (%)", "core_cpi_yoy": "核心CPI当月同比 (%)"})
-        fig_cpi_core = render_dual_axis_line_chart(
-            df_cpi_display,
-            "date",
-            ["CPI当月同比 (%)", "核心CPI当月同比 (%)"],
-            colors=["#0284c7", "#d97706"],
-            primary_y_title="同比 (%)"
-        )
+    if not df_cpi_core_hist.empty and "cpi_yoy" in df_cpi_core_hist.columns:
+        fig_cpi_core = render_cpi_core_history_chart(df_cpi_core_hist)
         st.plotly_chart(fig_cpi_core, use_container_width=True, config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-    # 6. 全国制造业 PMI 新订单 (底稿经济数据区折线图，数据源: dashboard_economic_series)
+    # 6. 全国制造业 PMI 新订单 (经济数据一览原图口径: PMI 表 D 列, 按年份叠放季节图)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 全国制造业 PMI 新订单（%）</p>", unsafe_allow_html=True)
-    if not df_econ_series_filtered.empty and "pmi_manuf_orders" in df_econ_series_filtered.columns:
-        df_pmi_orders_display = df_econ_series_filtered.rename(columns={"pmi_manuf_orders": "制造业PMI新订单"})
-        fig_pmi_orders = render_dual_axis_line_chart(
-            df_pmi_orders_display,
-            "date",
-            ["制造业PMI新订单"],
-            colors=["#059669"],
-            primary_y_title="指数 (点)"
-        )
-        st.plotly_chart(fig_pmi_orders, use_container_width=True, config={'displayModeBar': False})
+    if not df_pmi_orders_hist.empty and "pmi_new_orders" in df_pmi_orders_hist.columns:
+        fig_pmi_orders = render_pmi_new_orders_seasonal_chart(df_pmi_orders_hist)
+        if fig_pmi_orders:
+            st.plotly_chart(fig_pmi_orders, use_container_width=True, config={'displayModeBar': False})
 
     st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
     st.markdown(f'<div style="border-left: 3px solid #00f0ff; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#00f0ff; margin:0; font-size:1.0rem; font-weight:700;">🎯 通胀数据区（数据点：{inf_period}）</h4></div>', unsafe_allow_html=True)
