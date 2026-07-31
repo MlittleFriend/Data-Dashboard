@@ -1612,7 +1612,7 @@ with kpi_col_e1:
     ''', unsafe_allow_html=True)
     with st.expander("📑 GDP 板块详细数据", expanded=False):
         st.markdown(f"""
-        <div style="font-size: 0.78rem; color: #475569;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: #475569;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span>GDP 实际同比 ({latest_gdp_q}):</span> <b style="color: #0f172a;">{latest_gdp_yoy:+.1f}%</b>
             </div>
@@ -1651,7 +1651,7 @@ with kpi_col_e2:
         p_exp_cls = "#dc2626" if pmi_exp_orders >= 50 else "#16a34a"
         p_non_cls = "#dc2626" if pmi_non_manuf >= 50 else "#16a34a"
         st.markdown(f"""
-        <div style="font-size: 0.78rem; color: #475569;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: #475569;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span>制造业PMI-生产:</span> <b style="color: {p_prod_cls};">{pmi_prod:.1f}</b>
             </div>
@@ -1680,7 +1680,7 @@ with kpi_col_e3:
     ''', unsafe_allow_html=True)
     with st.expander("📑 外贸板块详细数据", expanded=False):
         st.markdown(f"""
-        <div style="font-size: 0.78rem; color: #475569;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: #475569;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span>出口当月同比:</span> <b style="color: #0f172a;">{latest_export_yoy:+.2f}%</b>
             </div>
