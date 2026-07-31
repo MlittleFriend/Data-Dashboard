@@ -514,7 +514,7 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
                 y=df[col],
                 mode="lines",
                 name=col,
-                line=dict(color=color, width=3, shape="spline") # 使用 spline 使折线平滑有机化
+                line=dict(color=color, width=3, shape="linear") # 与底稿折线口径一致：数据点间直线连接，不做平滑
             ), secondary_y=False)
             
         # 挂载低量级序列在右侧副 Y 轴 (secondary_y=True)
@@ -525,7 +525,7 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
                 y=df[col],
                 mode="lines",
                 name=col,
-                line=dict(color=color, width=3, shape="spline")
+                line=dict(color=color, width=3, shape="linear")
             ), secondary_y=True)
             
         left_title = primary_y_title or ", ".join(high_cols)
@@ -559,7 +559,7 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
                 y=df[col],
                 mode="lines",
                 name=col,
-                line=dict(color=color, width=3, shape="spline")
+                line=dict(color=color, width=3, shape="linear")
             ))
         left_title = primary_y_title or ", ".join(high_cols)
         fig.update_yaxes(
