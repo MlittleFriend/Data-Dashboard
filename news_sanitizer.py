@@ -212,7 +212,7 @@ def sanitize_news_item(rich_text):
     """
     对原始快讯进行独立字段（原标题、核心简讯）提取与精简。
     返回 (title, content)
-    其中合并后的总字数（len(title) + 1 + len(content)）在 40 - 60 字之间。
+    超长/无法完整成句时降级为仅标题展示，绝不硬截充数，杜绝断句。
     尾部强制以单个标准简体中文句号完结，并粉碎所有旧版方括号格式。
     """
     if not isinstance(rich_text, str) or not rich_text or str(rich_text).strip().lower() == "nan":
@@ -234,28 +234,35 @@ def sanitize_news_item(rich_text):
             body = rich_text[m.end():].strip()
         else:
             # 寻找首个标点分界作为语义标题首选，但禁止切分出无完整主谓结构（长度 < 5）的来源机构名称
+            # 或以引述动词结尾的断句碎片（如“XX州长表示，”被切成“XX州长表示”）
+            REPORTING_VERBS = ("表示", "称", "说", "指出", "强调", "认为", "透露", "宣布", "介绍", "通报", "回应", "警告", "呼吁")
             split_idx = len(rich_text)
             for idx in range(2, len(rich_text)):
                 if idx < 40 and rich_text[idx] in ['：', ':', '，', ',']:
                     candidate_title = rich_text[:idx].strip()
                     # 检查候选标题是否小于5个字，或者是否包含常见的无主谓信息的实体或来源元数据
                     is_metadata = any(kw in candidate_title for kw in [
-                        "资讯", "观察哨", "快讯", "金十", "新浪", "分值", "机构", "研究院", 
+                        "资讯", "观察哨", "快讯", "金十", "新浪", "分值", "机构", "研究院",
                         "分析", "发布", "董事长", "团队", "数据", "网", "社", "报", "电", "公司"
                     ])
-                    if len(candidate_title) >= 5 and not is_metadata:
+                    if len(candidate_title) >= 5 and not is_metadata and not candidate_title.endswith(REPORTING_VERBS):
                         split_idx = idx
                         break
-            
+
             if split_idx == len(rich_text):
-                # 如果没有合适的分割标点，尝试以首个句尾符分割
+                # 如果没有合适的分割标点，尝试以首个句尾符分割（放宽至 58 字以保证完整成句）
                 m_end = re.search(r'[。；;！!？?]', rich_text)
-                if m_end and 5 <= m_end.end() <= 40:
+                if m_end and 5 <= m_end.end() <= 58:
                     title = rich_text[:m_end.end()].strip()
                     body = rich_text[m_end.end():].strip()
                 else:
-                    title = rich_text[:35].strip()
-                    body = rich_text[35:].strip()
+                    # 无安全句读边界时在 58 字内寻找最后的子句边界，否则整条判脏
+                    cut = max(rich_text.rfind(p, 0, 58) for p in ['，', ',', '；', ';'])
+                    if cut >= 20:
+                        title = rich_text[:cut].strip()
+                        body = rich_text[cut:].strip()
+                    else:
+                        return "", ""
             else:
                 title = rich_text[:split_idx].strip()
                 body = rich_text[split_idx:].strip()
@@ -292,7 +299,11 @@ def sanitize_news_item(rich_text):
         # 条件 A: 标题大于 10 个字，触发总结熔断机制。只保留并写出原标题，content 留空，直接追加句号。
         title_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', title)
         if len(title_text) > 58:
-            title_text = title_text[:55] + "..."
+            # 超长按子句边界截断，杜绝半句断句；无安全边界则整条判脏
+            cut = max(title_text.rfind(p, 0, 55) for p in ["，", ",", "；", ";", "、"])
+            if cut < 30:
+                return "", ""
+            title_text = title_text[:cut]
         title_text = title_text + "。"
         title_text = re.sub(r'。+$', '。', title_text)
         return title_text, ""
@@ -311,31 +322,28 @@ def sanitize_news_item(rich_text):
         else:
             break
 
-    # 兜底截断
+    # 首个子句已超出长度窗口时，不再硬截充数，降级为仅标题展示，避免断句
     if not accumulated_body and clauses:
-        first_clause = clauses[0]
-        suffix = "，市场关注度上升"
-        safe_len = max_body_len - len(suffix)
-        if safe_len >= 10:
-            accumulated_body = first_clause[:safe_len] + suffix
-        else:
-            accumulated_body = first_clause[:max_body_len]
+        title_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', title) + "。"
+        title_text = re.sub(r'。+$', '。', title_text)
+        if len(title_text.replace("。", "").strip()) < 5 or not verify_semantic_integrity(title_text):
+            return "", ""
+        return title_text, ""
 
     accumulated_body = clean_trailing_incomplete(accumulated_body)
 
-    # 检查最小字数限制
-    combined_len = len(title) + 2 + len(accumulated_body)
-    if combined_len < 40:
-        tail = "，观察哨对此持续保持高频监测与深度跟踪"
-        needed = 40 - combined_len
-        accumulated_body = accumulated_body + tail[:needed+5]
-
-    # 二次对齐 [40, 60] 空间限制
+    # 超长时按子句边界回退截断，杜绝半句断句与硬凑字数
     combined_len = len(title) + 2 + len(accumulated_body)
     if combined_len > 60:
-        overflow = combined_len - 60
-        accumulated_body = accumulated_body[:-overflow]
-        accumulated_body = clean_trailing_incomplete(accumulated_body)
+        parts = [p for p in accumulated_body.split("，") if p]
+        trimmed = ""
+        for p in parts:
+            test = trimmed + ("，" if trimmed else "") + p
+            if len(title) + 2 + len(test) <= 60:
+                trimmed = test
+            else:
+                break
+        accumulated_body = clean_trailing_incomplete(trimmed)
         
     accumulated_body = re.sub(r'[。，,；;！!？?、\s：]+$', '', accumulated_body) + "。"
     accumulated_body = re.sub(r'。+$', '。', accumulated_body)
@@ -347,6 +355,16 @@ def sanitize_news_item(rich_text):
 
     # V1.1.4.3: 语义谓语框架检查（防范名词/机构特征碎片）
     if not verify_semantic_integrity(title):
+        return "", ""
+
+    # V1.1.4.4: 断句拦截——标题以引述动词或虚词结尾即宾语缺失（如“XX州长表示”），判定为断句碎片
+    FRAGMENT_TAILS = (
+        "表示", "指出", "强调", "认为", "预计", "透露", "建议", "要求", "呼吁",
+        "警告", "回应", "介绍", "通报", "宣布", "称", "说", "据",
+        "的", "了", "和", "与", "及", "或", "并", "对", "为", "把", "被",
+        "向", "从", "由", "在", "于", "就", "将", "已",
+    )
+    if title_strip.endswith(FRAGMENT_TAILS):
         return "", ""
 
     return title.strip(), accumulated_body.strip()
@@ -365,3 +383,52 @@ def ai_summarize(text):
     res = re.sub(r'。+$', '。', res)
     return res
 
+
+
+# ---------------------------------------------------------------------------
+# 宏观话题口径过滤：只保留经济、金融、国际局势类宏观快讯
+# ---------------------------------------------------------------------------
+MACRO_TOPIC_KEYWORDS = [
+    # 经济数据与指标
+    "GDP", "CPI", "PPI", "PMI", "通胀", "通缩", "通涨", "物价", "统计局", "景气",
+    "增加值", "社零", "零售", "消费", "投资", "工业", "制造业", "服务业", "就业", "失业",
+    "经济", "增长", "衰退", "复苏", "企稳", "回升", "回落",
+    # 货币与金融政策
+    "央行", "美联储", "加息", "降息", "降准", "利率", "LPR", "MLF", "逆回购", "存款准备",
+    "货币", "流动性", "信贷", "贷款", "存款", "社融", "M1", "M2", "融资", "债券", "国债",
+    "收益率", "汇率", "人民币", "美元", "欧元", "日元", "外汇", "外储", "黄金", "银价",
+    "原油", "油价", "大宗", "商品", "期货价格",
+    # 财政与贸易
+    "财政", "赤字", "税收", "关税", "贸易", "出口", "进口", "外贸", "顺差", "逆差",
+    # 国际局势
+    "国际", "全球", "地缘", "冲突", "战争", "停火", "制裁", "谈判", "协议", "选举",
+    "总统", "首相", "总理", "议会", "国会", "欧盟", "欧佩克", "OPEC", "峰会", "IMF",
+    "世界银行", "联合国", "北约", "俄罗斯", "乌克兰", "中东", "伊朗", "以色列",
+    "朝鲜", "韩国", "日本", "美国", "印度", "东盟", "G7", "G20", "避险",
+]
+
+NON_MACRO_TOPIC_KEYWORDS = [
+    # 个股/题材/盘面异动
+    "涨停", "跌停", "一字板", "连板", "龙虎榜", "主力资金", "净流入", "净流出",
+    "日内涨幅", "日内跌幅", "概念股", "题材", "板块异动", "异动拉升", "异动",
+    "市值", "个股", "新股", "申购", "IPO", "减持", "增持", "回购", "分红", "配股",
+    "高开超", "低开超", "涨超", "跌超", "领涨", "领跌",
+    # 券商个股研报/评级
+    "证券：", "证券:", "研报", "评级", "目标价",
+    # 人事/社会/文体
+    "职务调整", "任命", "免职", "辞职", "逝世", "去世", "被查", "落马", "违纪",
+    "违法", "犯罪", "判决", "起诉", "事故", "车祸", "火灾", "明星", "电影", "票房",
+    "演唱会", "体育", "足球", "篮球", "奥运", "赛事",
+]
+
+
+def is_macro_topic(title: str) -> bool:
+    """
+    宏观话题口径审查：命中黑名单（个股/题材炒作/人事社会等）直接剔除；
+    否则需命中白名单（经济、金融、国际局势类宏观关键词）才保留。
+    """
+    if not title or not isinstance(title, str):
+        return False
+    if any(kw in title for kw in NON_MACRO_TOPIC_KEYWORDS):
+        return False
+    return any(kw in title for kw in MACRO_TOPIC_KEYWORDS)

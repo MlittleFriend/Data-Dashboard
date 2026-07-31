@@ -15,7 +15,7 @@ import openpyxl
 import pandas as pd
 import requests
 
-from news_sanitizer import is_valid_url, sanitize_news_item, verify_semantic_integrity
+from news_sanitizer import is_valid_url, sanitize_news_item, verify_semantic_integrity, is_macro_topic
 
 DB_NAME = "my_data.db"
 EXCEL_FILE = "26630.xlsx"
@@ -214,7 +214,7 @@ def generate_and_save_macro_analysis():
 
 def fetch_finance_news(limit=5):
     """4. 实时在线抓取新浪 7x24 快讯以供顶部滚动横幅展现"""
-    api_limit = max(limit * 3, 20)
+    api_limit = max(limit * 8, 50)
     url = f"https://zhibo.sina.com.cn/api/zhibo/feed?page=1&page_size={api_limit}&zhibo_id=152&tag_id=0&dire=1&dpc=1"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -223,6 +223,7 @@ def fetch_finance_news(limit=5):
         response = requests.get(url, headers=headers, timeout=15)
         news_list = response.json().get("result", {}).get("data", {}).get("feed", {}).get("list", [])
         records = []
+        seen_titles = set()
         for item in news_list:
             doc_url = item.get("docurl", "").strip()
             if not is_valid_url(doc_url):
@@ -230,9 +231,13 @@ def fetch_finance_news(limit=5):
             # 提取并清洗 title 和 content 独立字段
             raw_text = item.get("rich_text", "").strip()
             t, c = sanitize_news_item(raw_text)
-            # V1.1.4.2 & V1.1.4.3: Headline Guard & Semantic SVO filter
-            if not t or len(str(t).replace("。", "").strip()) < 5 or not verify_semantic_integrity(t):
+            # V1.1.4.2 & V1.1.4.3: Headline Guard & Semantic SVO filter；宏观话题口径过滤（仅经济/金融/国际局势）
+            if not t or len(str(t).replace("。", "").strip()) < 8 or not verify_semantic_integrity(t) or not is_macro_topic(t):
                 continue
+            # 标题去重：同一事件被快讯源重复推送时只保留首条
+            if t in seen_titles:
+                continue
+            seen_titles.add(t)
             records.append({
                 "id": item.get("id"),
                 "publish_time": item.get("create_time"),
