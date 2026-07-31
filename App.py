@@ -1478,6 +1478,41 @@ try:
 except Exception:
     latest_gdp_yoy, latest_gdp_mom, latest_gdp_q, delta_gdp_yoy = 4.3, 0.9, "26Q2", 0.0
 
+# 7.4.2 提取经济数据细分切片（供 KPI 活页与下方明细舱复用）
+if not df_econ_series.empty and len(df_econ_series) >= 1:
+    latest_econ_row = df_econ_series.iloc[-1]
+    ind_yoy = float(latest_econ_row.get("industrial_gva_yoy", 5.3))
+    ind_mom = float(latest_econ_row.get("industrial_gva_mom", 0.76))
+    srv_yoy = float(latest_econ_row.get("service_index_yoy", 4.7))
+    profit_yoy = float(latest_econ_row.get("profit_yoy", 0.0))
+    revenue_yoy = float(latest_econ_row.get("revenue_yoy", 0.0))
+
+    pmi_prod = float(latest_econ_row.get("pmi_manuf_prod", 51.4))
+    pmi_orders = float(latest_econ_row.get("pmi_manuf_orders", 51.2))
+    pmi_exp_orders = float(latest_econ_row.get("pmi_manuf_export_orders", 50.1))
+    pmi_non_manuf = float(latest_econ_row.get("pmi_non_manuf", 50.2))
+
+    fai_re = float(latest_econ_row.get("fai_realestate_yoy", -24.39))
+    fai_infra = float(latest_econ_row.get("fai_infra_yoy", -9.78))
+    fai_manuf = float(latest_econ_row.get("fai_manuf_yoy", -3.22))
+
+    prop_sales = float(latest_econ_row.get("property_sales_area_yoy", -14.33))
+    prop_starts = float(latest_econ_row.get("property_starts_yoy", -25.98))
+    prop_comp = float(latest_econ_row.get("property_completions_yoy", -25.02))
+
+    retail_above = float(latest_econ_row.get("retail_sales_above_size_yoy", -2.00))
+    unemployment = float(latest_econ_row.get("unemployment_rate", 5.0))
+
+    import_yoy = float(latest_econ_row.get("import_yoy", 36.01))
+    trade_bal = float(latest_econ_row.get("trade_balance", 1256.23))
+else:
+    ind_yoy, ind_mom, srv_yoy, profit_yoy, revenue_yoy = 5.3, 0.76, 4.7, 0.0, 0.0
+    pmi_prod, pmi_orders, pmi_exp_orders, pmi_non_manuf = 51.4, 51.2, 50.1, 50.2
+    fai_re, fai_infra, fai_manuf = -24.39, -9.78, -3.22
+    prop_sales, prop_starts, prop_comp = -14.33, -25.98, -25.02
+    retail_above, unemployment = -2.0, 5.0
+    import_yoy, trade_bal = 36.01, 1256.23
+
 # 优先读取原始 Excel 中的 较上月变化
 if not df_deltas.empty:
     delta_map = dict(zip(df_deltas["metric_key"], df_deltas["change_mom"]))
@@ -1570,12 +1605,34 @@ with kpi_col_e1:
     <div class="kpi-card" style="border-top-color: #0284c7;">
         <div class="kpi-header-row">
             <span class="kpi-title">GDP 实际同比（{latest_gdp_q}）</span>
-            <a href="#econ-detail-gdp" target="_self" class="kpi-link">📊 详细数据 ↗</a>
         </div>
         <div class="kpi-value">{latest_gdp_yoy:+.1f}%</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
+    with st.expander("📑 GDP 板块详细数据", expanded=False):
+        st.markdown(f"""
+        <div style="font-size: 0.78rem; color: #475569;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>GDP 实际同比 ({latest_gdp_q}):</span> <b style="color: #0f172a;">{latest_gdp_yoy:+.1f}%</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>GDP 环比增速 ({latest_gdp_q}):</span> <b style="color: #0f172a;">{latest_gdp_mom:+.1f}%</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>工增当月同比:</span> <b style="color: #0f172a;">{ind_yoy:+.1f}%</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>工增当月环比:</span> <b style="color: #0f172a;">{ind_mom:+.2f}%</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>服务业生产指数:</span> <b style="color: #0f172a;">{srv_yoy:+.1f}%</b>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>规上工业利润同比:</span> <b style="color: #0f172a;">{profit_yoy:+.1f}%</b>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 with kpi_col_e2:
     d_class, d_txt = format_kpi_delta(delta_pmi_manuf, unit="点")
@@ -1583,12 +1640,32 @@ with kpi_col_e2:
     <div class="kpi-card" style="border-top-color: #d97706;">
         <div class="kpi-header-row">
             <span class="kpi-title">制造业 PMI</span>
-            <a href="#econ-detail-pmi" target="_self" class="kpi-link">📊 详细数据 ↗</a>
         </div>
         <div class="kpi-value">{latest_pmi_manuf:.1f}</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
+    with st.expander("📑 PMI 板块详细数据", expanded=False):
+        p_prod_cls = "#dc2626" if pmi_prod >= 50 else "#16a34a"
+        p_ord_cls = "#dc2626" if pmi_orders >= 50 else "#16a34a"
+        p_exp_cls = "#dc2626" if pmi_exp_orders >= 50 else "#16a34a"
+        p_non_cls = "#dc2626" if pmi_non_manuf >= 50 else "#16a34a"
+        st.markdown(f"""
+        <div style="font-size: 0.78rem; color: #475569;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>制造业PMI-生产:</span> <b style="color: {p_prod_cls};">{pmi_prod:.1f}</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>制造业PMI-新订单:</span> <b style="color: {p_ord_cls};">{pmi_orders:.1f}</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>制造业PMI-新出口订单:</span> <b style="color: {p_exp_cls};">{pmi_exp_orders:.1f}</b>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>非制造业 PMI:</span> <b style="color: {p_non_cls};">{pmi_non_manuf:.1f}</b>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 with kpi_col_e3:
     d_class, d_txt = format_kpi_delta(delta_export_yoy)
@@ -1596,12 +1673,25 @@ with kpi_col_e3:
     <div class="kpi-card" style="border-top-color: #e11d48;">
         <div class="kpi-header-row">
             <span class="kpi-title">外贸出口同比</span>
-            <a href="#econ-detail-trade" target="_self" class="kpi-link">📊 详细数据 ↗</a>
         </div>
         <div class="kpi-value">{latest_export_yoy:+.2f}%</div>
         <div class="kpi-delta {d_class}">{d_txt}</div>
     </div>
     ''', unsafe_allow_html=True)
+    with st.expander("📑 外贸板块详细数据", expanded=False):
+        st.markdown(f"""
+        <div style="font-size: 0.78rem; color: #475569;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>出口当月同比:</span> <b style="color: #0f172a;">{latest_export_yoy:+.2f}%</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>进口当月同比:</span> <b style="color: #0f172a;">{import_yoy:+.2f}%</b>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>当月贸易差额:</span> <b style="color: #0f172a;">{trade_bal:,.1f} 亿$</b>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
 
@@ -1779,114 +1869,23 @@ with kpi_col8:
 
 st.markdown('<div style="margin-bottom: 16px;"></div>', unsafe_allow_html=True)
 
-# 7.5 提取经济数据细化明细（活页舱展示的细分数据切片；GDP 最新值已在 7.4.1 提取）
-if not df_econ_series.empty and len(df_econ_series) >= 1:
-    latest_econ_row = df_econ_series.iloc[-1]
-    ind_yoy = float(latest_econ_row.get("industrial_gva_yoy", 5.3))
-    ind_mom = float(latest_econ_row.get("industrial_gva_mom", 0.76))
-    srv_yoy = float(latest_econ_row.get("service_index_yoy", 4.7))
-    profit_yoy = float(latest_econ_row.get("profit_yoy", 0.0))
-    revenue_yoy = float(latest_econ_row.get("revenue_yoy", 0.0))
+# 7.5 经济数据细分切片已上移至 7.4.2（KPI 活页需在渲染前取数）
 
-    pmi_prod = float(latest_econ_row.get("pmi_manuf_prod", 51.4))
-    pmi_orders = float(latest_econ_row.get("pmi_manuf_orders", 51.2))
-    pmi_exp_orders = float(latest_econ_row.get("pmi_manuf_export_orders", 50.1))
-    pmi_non_manuf = float(latest_econ_row.get("pmi_non_manuf", 50.2))
-
-    fai_re = float(latest_econ_row.get("fai_realestate_yoy", -24.39))
-    fai_infra = float(latest_econ_row.get("fai_infra_yoy", -9.78))
-    fai_manuf = float(latest_econ_row.get("fai_manuf_yoy", -3.22))
-
-    prop_sales = float(latest_econ_row.get("property_sales_area_yoy", -14.33))
-    prop_starts = float(latest_econ_row.get("property_starts_yoy", -25.98))
-    prop_comp = float(latest_econ_row.get("property_completions_yoy", -25.02))
-
-    retail_above = float(latest_econ_row.get("retail_sales_above_size_yoy", -2.00))
-    unemployment = float(latest_econ_row.get("unemployment_rate", 5.0))
-
-    import_yoy = float(latest_econ_row.get("import_yoy", 36.01))
-    trade_bal = float(latest_econ_row.get("trade_balance", 1256.23))
-else:
-    ind_yoy, ind_mom, srv_yoy, profit_yoy, revenue_yoy = 5.3, 0.76, 4.7, 0.0, 0.0
-    pmi_prod, pmi_orders, pmi_exp_orders, pmi_non_manuf = 51.4, 51.2, 50.1, 50.2
-    fai_re, fai_infra, fai_manuf = -24.39, -9.78, -3.22
-    prop_sales, prop_starts, prop_comp = -14.33, -25.98, -25.02
-    retail_above, unemployment = -2.0, 5.0
-    import_yoy, trade_bal = 36.01, 1256.23
-
-# 7.6 经济数据细分活页舱（点击展开各主题明细，折叠态仅显示主题头条数据）
+# 7.6 其他经济数据明细舱（未置顶于 KPI 大区的细分数据，静态平铺）
 st.markdown(f"""
-<div style="margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+<div style="margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
     <h4 style="margin: 0; color: #0284c7; font-size: 1.0rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-        📑 经济数据细分活页（数据点：{econ_period}）
+        📑 其他经济数据明细（数据点：{econ_period}）
     </h4>
     <span style="font-size: 0.74rem; color: #64748b; font-weight: 600;">
-        点击各活页标签，展开对应主题的细分数据切片
+        未置顶于 Top KPI 大区的经济细分数据切片
     </span>
 </div>
 """, unsafe_allow_html=True)
 
-# 活页 1：GDP 与工业效益
-st.markdown('<div id="econ-detail-gdp"></div>', unsafe_allow_html=True)
-with st.expander(f"🏛️ GDP 与工业效益 ｜ GDP 实际同比 {latest_gdp_yoy:+.1f}%（{latest_gdp_q}）", expanded=False):
-    st.markdown(f"""
-    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #0284c7; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <span>🏛️ GDP 与工业效益</span>
-            <a href="#econ-gdp-chart" target="_self" style="font-size: 0.68rem; color: #0284c7; text-decoration: none; font-weight: 600;">📊 图表 ↗</a>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>GDP 实际同比 ({latest_gdp_q}):</span> <b style="color: #0f172a;">{latest_gdp_yoy:+.1f}%</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>GDP 环比增速 ({latest_gdp_q}):</span> <b style="color: #0f172a;">{latest_gdp_mom:+.1f}%</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>工增当月同比:</span> <b style="color: #0f172a;">{ind_yoy:+.1f}%</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>工增当月环比:</span> <b style="color: #0f172a;">{ind_mom:+.2f}%</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>服务业生产指数:</span> <b style="color: #0f172a;">{srv_yoy:+.1f}%</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between;">
-            <span>规上工业利润同比:</span> <b style="color: #0f172a;">{profit_yoy:+.1f}%</b>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+em_col1, em_col2, em_col3 = st.columns(3)
 
-# 活页 2：PMI 景气指数
-st.markdown('<div id="econ-detail-pmi"></div>', unsafe_allow_html=True)
-with st.expander(f"🏭 PMI 景气指数 ｜ 制造业 PMI {latest_pmi_manuf:.1f}", expanded=False):
-    p_prod_cls = "#dc2626" if pmi_prod >= 50 else "#16a34a"
-    p_ord_cls = "#dc2626" if pmi_orders >= 50 else "#16a34a"
-    p_exp_cls = "#dc2626" if pmi_exp_orders >= 50 else "#16a34a"
-    p_non_cls = "#dc2626" if pmi_non_manuf >= 50 else "#16a34a"
-    st.markdown(f"""
-    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #d97706; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <span>🏭 PMI 景气指数明细</span>
-            <a href="#econ-pmi-chart" target="_self" style="font-size: 0.68rem; color: #d97706; text-decoration: none; font-weight: 600;">📊 图表 ↗</a>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>制造业PMI-生产:</span> <b style="color: {p_prod_cls};">{pmi_prod:.1f}</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>制造业PMI-新订单:</span> <b style="color: {p_ord_cls};">{pmi_orders:.1f}</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>制造业PMI-新出口订单:</span> <b style="color: {p_exp_cls};">{pmi_exp_orders:.1f}</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between;">
-            <span>非制造业 PMI:</span> <b style="color: {p_non_cls};">{pmi_non_manuf:.1f}</b>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# 活页 3：固资投资结构
-st.markdown('<div id="econ-detail-investment"></div>', unsafe_allow_html=True)
-with st.expander(f"🏗️ 固资投资结构 ｜ 固资投资增速 {latest_fai_yoy:+.2f}%", expanded=False):
+with em_col1:
     st.markdown(f"""
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
         <div style="font-size: 0.82rem; font-weight: 700; color: #059669; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
@@ -1908,8 +1907,7 @@ with st.expander(f"🏗️ 固资投资结构 ｜ 固资投资增速 {latest_fai
     </div>
     """, unsafe_allow_html=True)
 
-# 活页 4：房地产开发链
-with st.expander(f"🏠 房地产开发链 ｜ 商品房销售面积 {prop_sales:+.2f}%", expanded=False):
+with em_col2:
     st.markdown(f"""
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
         <div style="font-size: 0.82rem; font-weight: 700; color: #7c3aed; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
@@ -1928,13 +1926,11 @@ with st.expander(f"🏠 房地产开发链 ｜ 商品房销售面积 {prop_sales
     </div>
     """, unsafe_allow_html=True)
 
-# 活页 5：消费、失业与外贸
-st.markdown('<div id="econ-detail-retail"></div><div id="econ-detail-trade"></div>', unsafe_allow_html=True)
-with st.expander(f"🛒 消费、失业与外贸 ｜ 社零增速 {latest_retail_sales_yoy:+.2f}% ｜ 出口 {latest_export_yoy:+.2f}%", expanded=False):
+with em_col3:
     st.markdown(f"""
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
         <div style="font-size: 0.82rem; font-weight: 700; color: #e11d48; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <span>🛒 消费、失业与外贸</span>
+            <span>🛒 消费与失业</span>
             <a href="#econ-retail-chart" target="_self" style="font-size: 0.68rem; color: #e11d48; text-decoration: none; font-weight: 600;">📊 图表 ↗</a>
         </div>
         <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
@@ -1943,17 +1939,8 @@ with st.expander(f"🛒 消费、失业与外贸 ｜ 社零增速 {latest_retail
         <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
             <span>限额以上社零:</span> <b style="color: #0f172a;">{retail_above:+.1f}%</b>
         </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>城镇调查失业率:</span> <b style="color: #0f172a;">{unemployment:.1f}%</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>出口当月同比:</span> <b style="color: #0f172a;">{latest_export_yoy:+.2f}%</b>
-        </div>
-        <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>进口当月同比:</span> <b style="color: #0f172a;">{import_yoy:+.2f}%</b>
-        </div>
         <div style="font-size: 0.76rem; color: #475569; display: flex; justify-content: space-between;">
-            <span>当月贸易差额:</span> <b style="color: #0f172a;">{trade_bal:,.1f} 亿$</b>
+            <span>城镇调查失业率:</span> <b style="color: #0f172a;">{unemployment:.1f}%</b>
         </div>
     </div>
     """, unsafe_allow_html=True)
