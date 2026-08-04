@@ -20,6 +20,14 @@ from upload_data import fetch_finance_news
 # 版本标识与前馈控制参数 V2.0.0
 VERSION = "V2.0.0"
 
+# 1. 设置网页标题和图标，使用大屏宽屏布局以适配 China Macro Observatory 看板风格
+#    必须是第一条 st.* 命令，否则 Streamlit 会忽略 set_page_config 并导致 UI 控件异常
+st.set_page_config(
+    page_title="中国宏观观察哨 | China Macro Observatory", 
+    page_icon="🇨🇳", 
+    layout="wide"
+)
+
 # 加载并初始化外部技能动态网关
 try:
     from agent_skill_kernel import init_skills
@@ -51,13 +59,6 @@ if hasattr(st, "fragment"):
 else:
     def news_fragment(func):
         return func
-
-# 1. 设置网页标题和图标，使用大屏宽屏布局以适配 China Macro Observatory 看板风格
-st.set_page_config(
-    page_title="中国宏观观察哨 | China Macro Observatory", 
-    page_icon="🇨🇳", 
-    layout="wide"
-)
 
 # 注入高信息密度大屏科技暗调风格 CSS 样式
 st.markdown("""
