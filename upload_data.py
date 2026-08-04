@@ -740,7 +740,7 @@ def _find_econ_overview_file():
     """定位「经济数据更新」目录下最新的经济数据一览底稿（排除 Excel 临时锁文件）"""
     import glob
     candidates = glob.glob(os.path.join("经济数据更新", "*经济数据一览*.xlsx"))
-    candidates = [f for f in candidates if not os.path.basename(f).startswith("~$")]
+    candidates = [f for f in candidates if not os.path.basename(f).startswith("~$") and ".pipeline.tmp." not in os.path.basename(f)]
     if not candidates:
         return None
     return max(candidates, key=os.path.getmtime)
