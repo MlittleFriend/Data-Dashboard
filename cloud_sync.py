@@ -119,6 +119,7 @@ def sync_to_cloud(reason="26630 数据更新"):
             return False
         if not res.stdout.strip():
             print("[Cloud Sync] 数据产物无变更，无需同步。")
+            record_sync_result(True, "数据无变更 (Idle)")
             _last_sync_ts = now
             return False
 

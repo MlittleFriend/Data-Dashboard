@@ -692,6 +692,14 @@ def start_file_watcher():
                 run_alignment_pipeline(EXCEL_FILE, force=False)
         except Exception as e:
             print(f"[Watcher] 启动首次对齐失败: {e}")
+
+        # 首次启动后无论数据是否变更，都执行一次云端同步状态巡检
+        # （确保 cloud_sync_status.json 被写入，侧栏始终有状态卡片展示）
+        try:
+            import cloud_sync
+            cloud_sync.sync_to_cloud(reason="启动巡检")
+        except Exception:
+            pass
             
         last_sha256 = calculate_sha256(EXCEL_FILE)
         last_mtime = str(os.path.getmtime(EXCEL_FILE)) if os.path.exists(EXCEL_FILE) else ""
