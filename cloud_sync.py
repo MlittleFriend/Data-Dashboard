@@ -18,6 +18,13 @@ import threading
 import time
 from datetime import datetime
 
+# 标准输出 UTF-8 编码设置（避免 Windows GBK 控制台下 emoji 导致异常）
+import sys
+try:
+    sys.stdout.reconfigure(encoding="utf-8")  # pyrefly: ignore [missing-attribute]
+except Exception:
+    pass
+
 # 需要随 26630 数据更新一并同步到云端的产物文件（含看板代码，实现“改完自动推”）
 # 注意：my_data.db 不入库——云端启动时由对齐管线从 26630.xlsx 现场重建，避免二进制冲突与仓库膨胀
 SYNC_FILES = [
