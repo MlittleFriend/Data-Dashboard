@@ -170,6 +170,11 @@ st.markdown("""
         color: #6366f1;
     }
 
+    .dot-yellow {
+        background-color: #d97706;
+        color: #d97706;
+    }
+
     /* 观察哨高密度白色质感卡片容器 */
     .obs-card {
         background: #ffffff !important;
@@ -1963,32 +1968,32 @@ with col_left:
     st.markdown('<div id="econ-trade-chart"></div>', unsafe_allow_html=True)
     fig_17 = render_embedded_chart_by_id(df_embedded_charts, 17)
     if fig_17:
-        st.plotly_chart(fig_17, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_17, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 2. 各类消费品零售增速 (Chart #18)
     fig_18 = render_embedded_chart_by_id(df_embedded_charts, 18)
     if fig_18:
-        st.plotly_chart(fig_18, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_18, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 3. M1、M2 同比增速 (Chart #19)
     fig_19 = render_embedded_chart_by_id(df_embedded_charts, 19)
     if fig_19:
-        st.plotly_chart(fig_19, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_19, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 4. 各主要行业工业增加值增速 (Chart #20)
     fig_20 = render_embedded_chart_by_id(df_embedded_charts, 20)
     if fig_20:
-        st.plotly_chart(fig_20, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_20, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 5. CPI 和核心 CPI 当月同比 (经济数据一览原图口径: CPI 表 N/O 列长历史, 2018 年中起)
     st.markdown("<p style='font-size:0.8rem; color:#94a3b8; margin-top:5px; margin-bottom:5px; font-weight:500;'>📊 CPI 和核心 CPI 当月同比（%）</p>", unsafe_allow_html=True)
     if not df_cpi_core_hist.empty and "cpi_yoy" in df_cpi_core_hist.columns:
         fig_cpi_core = render_cpi_core_history_chart(df_cpi_core_hist)
-        st.plotly_chart(fig_cpi_core, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_cpi_core, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 6. 全国制造业 PMI 新订单 (经济数据一览原图口径: PMI 表 D 列, 按年份叠放季节图)
@@ -1996,7 +2001,7 @@ with col_left:
     if not df_pmi_orders_hist.empty and "pmi_new_orders" in df_pmi_orders_hist.columns:
         fig_pmi_orders = render_pmi_new_orders_seasonal_chart(df_pmi_orders_hist)
         if fig_pmi_orders:
-            st.plotly_chart(fig_pmi_orders, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(fig_pmi_orders, width='stretch', config={'displayModeBar': False})
 
     st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
     st.markdown(f'<div style="border-left: 3px solid #00f0ff; padding-left: 10px; margin-bottom: 14px;"><h4 style="color:#00f0ff; margin:0; font-size:1.0rem; font-weight:700;">🎯 通胀数据区（数据点：{inf_period}）</h4></div>', unsafe_allow_html=True)
@@ -2005,50 +2010,50 @@ with col_left:
     st.markdown('<div id="cpi-chart"></div>', unsafe_allow_html=True)
     fig_3 = render_embedded_chart_by_id(df_embedded_charts, 3)
     if fig_3:
-        st.plotly_chart(fig_3, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_3, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 3. CPI 食品分项环比 (Chart #4)
     fig_4 = render_embedded_chart_by_id(df_embedded_charts, 4)
     if fig_4:
-        st.plotly_chart(fig_4, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_4, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 4. CPI 环比贡献拆分 (Chart #1)
     fig_1 = render_embedded_chart_by_id(df_embedded_charts, 1)
     if fig_1:
-        st.plotly_chart(fig_1, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_1, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 5. CPI 同比贡献拆分 (Chart #2)
     fig_2 = render_embedded_chart_by_id(df_embedded_charts, 2)
     if fig_2:
-        st.plotly_chart(fig_2, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_2, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 6. PPI 生产资料环比 (Chart #5, Anchor: #ppi-chart)
     st.markdown('<div id="ppi-chart"></div>', unsafe_allow_html=True)
     fig_5 = render_embedded_chart_by_id(df_embedded_charts, 5)
     if fig_5:
-        st.plotly_chart(fig_5, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_5, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 9. PPI 生活资料环比 (Chart #6)
     fig_6 = render_embedded_chart_by_id(df_embedded_charts, 6)
     if fig_6:
-        st.plotly_chart(fig_6, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_6, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 10. PPI 同比贡献拆分 (Chart #7)
     fig_7 = render_embedded_chart_by_id(df_embedded_charts, 7)
     if fig_7:
-        st.plotly_chart(fig_7, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_7, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 11. PPI 环比贡献拆分 (Chart #8)
     fig_8 = render_embedded_chart_by_id(df_embedded_charts, 8)
     if fig_8:
-        st.plotly_chart(fig_8, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_8, width='stretch', config={'displayModeBar': False})
 
     st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
 
@@ -2059,26 +2064,26 @@ with col_left:
     st.markdown('<div id="fiscal-rev-exp-chart"></div>', unsafe_allow_html=True)
     fig_11 = render_embedded_chart_by_id(df_embedded_charts, 11)
     if fig_11:
-        st.plotly_chart(fig_11, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_11, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 14. 各分项支出当月同比增速 (Chart #12)
     fig_12 = render_embedded_chart_by_id(df_embedded_charts, 12)
     if fig_12:
-        st.plotly_chart(fig_12, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_12, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 15. 历年 6 月狭义财政收支进度 (Chart #9)
     fig_9 = render_embedded_chart_by_id(df_embedded_charts, 9)
     if fig_9:
-        st.plotly_chart(fig_9, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_9, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 16. 历年 6 月政府性基金收支进度 (Chart #10, Anchor: #fiscal-fund-chart)
     st.markdown('<div id="fiscal-fund-chart"></div>', unsafe_allow_html=True)
     fig_10 = render_embedded_chart_by_id(df_embedded_charts, 10)
     if fig_10:
-        st.plotly_chart(fig_10, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_10, width='stretch', config={'displayModeBar': False})
 
     st.markdown("<div style='margin-bottom:28px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);'></div>", unsafe_allow_html=True)
 
@@ -2089,27 +2094,27 @@ with col_left:
     st.markdown('<div id="finance-chart"></div>', unsafe_allow_html=True)
     fig_13 = render_embedded_chart_by_id(df_embedded_charts, 13)
     if fig_13:
-        st.plotly_chart(fig_13, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_13, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 18. 新口径 M1 同比 (Chart #14, Anchor: #finance-money-chart)
     st.markdown('<div id="finance-money-chart"></div>', unsafe_allow_html=True)
     fig_14 = render_embedded_chart_by_id(df_embedded_charts, 14)
     if fig_14:
-        st.plotly_chart(fig_14, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_14, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 19. 居民与企业中长期贷款 (Chart #15)
     fig_15 = render_embedded_chart_by_id(df_embedded_charts, 15)
     if fig_15:
-        st.plotly_chart(fig_15, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_15, width='stretch', config={'displayModeBar': False})
         st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # 20. 社融-M2 增速差 (Chart #16, Anchor: #finance-stock-chart)
     st.markdown('<div id="finance-stock-chart"></div>', unsafe_allow_html=True)
     fig_16 = render_embedded_chart_by_id(df_embedded_charts, 16)
     if fig_16:
-        st.plotly_chart(fig_16, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_16, width='stretch', config={'displayModeBar': False})
 
     st.markdown('</div>', unsafe_allow_html=True)
 
