@@ -3,3 +3,4 @@ __pycache__/
 *.pyo
 my_data.db
 cloud_sync_status.json
+.streamlit/secrets.toml

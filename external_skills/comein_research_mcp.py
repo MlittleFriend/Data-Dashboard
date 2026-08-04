@@ -15,14 +15,31 @@ except ImportError:
     MCP_AVAILABLE = False
 
 COMEIN_MCP_SSE_URL = "https://mcp-server-global.comein.cn/mcp-servers/mcp-server-brm/sse"
-COMEIN_MCP_KEY = "cm_749b197afeca4efb966e2b03dc6e5bcc"
+
+def _get_comein_mcp_key():
+    """从环境变量 → Streamlit Secrets → 最终兜底 获取进门 MCP API 密钥（绝不硬编码）"""
+    import os
+    key = os.environ.get("COMEIN_MCP_KEY", "")
+    if key:
+        return key
+    try:
+        import streamlit as st
+        key = st.secrets.get("COMEIN_MCP_KEY", "")
+        if key:
+            return key
+    except Exception:
+        pass
+    raise RuntimeError(
+        "COMEIN_MCP_KEY 未配置。请设置环境变量 COMEIN_MCP_KEY，"
+        "或在 Streamlit Cloud 的 Secrets 中添加 COMEIN_MCP_KEY。"
+    )
 
 
 async def _async_call_mcp_tool(tool_name: str, arguments: dict = None) -> dict:
     if not MCP_AVAILABLE:
         return {"status": "error", "message": "Python 'mcp' SDK未安装"}
 
-    headers = {"x-mcp-key": COMEIN_MCP_KEY}
+    headers = {"x-mcp-key": _get_comein_mcp_key()}
     arguments = arguments or {}
 
     try:
@@ -58,7 +75,7 @@ async def _async_list_mcp_tools() -> dict:
     if not MCP_AVAILABLE:
         return {"status": "error", "message": "Python 'mcp' SDK未安装"}
 
-    headers = {"x-mcp-key": COMEIN_MCP_KEY}
+    headers = {"x-mcp-key": _get_comein_mcp_key()}
     try:
         async with sse_client(COMEIN_MCP_SSE_URL, headers=headers) as (read_stream, write_stream):
             async with ClientSession(read_stream, write_stream) as session:
