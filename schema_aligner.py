@@ -766,7 +766,7 @@ def verify_and_log_excel_deviations(excel_path: str) -> dict:
                 if sheet not in old_snapshot:
                     results["deviations"].append(f"[NEW SHEET] {sheet}")
                 else:
-                    old_cols = old_snapshot[sheet]
+                    old_cols = old_snapshot[sheet].get("columns", old_snapshot[sheet]) if isinstance(old_snapshot[sheet], dict) else old_snapshot[sheet]
                     if cols != old_cols:
                         results["deviations"].append(f"[SHEET COLUMN MUTATION] {sheet}: Old={old_cols} -> New={cols}")
             
