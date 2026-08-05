@@ -14,7 +14,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 import schema_aligner
-from news_sanitizer import is_valid_url, sanitize_news_item, verify_semantic_integrity
+from news_sanitizer import is_valid_url, sanitize_news_item, verify_semantic_integrity, is_fragment_tail, is_numeric_ending_fragment
 from upload_data import fetch_finance_news
 
 # 版本标识与前馈控制参数 V2.0.0
@@ -2140,6 +2140,10 @@ with col_right:
                 display_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', display_text) + "。"
                 display_text = re.sub(r'。+$', '。', display_text)
                 display_text = display_text.replace("【", "").replace("】", "").replace("[", "").replace("]", "")
+
+                # 断句终审：净化后仍以连接词/虚词/数字结尾 → 直接丢弃
+                if is_fragment_tail(display_text) or is_numeric_ending_fragment(display_text):
+                    continue
 
                 clean_content = re.sub('<[^<]+?>', '', display_text)
 

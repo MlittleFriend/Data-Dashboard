@@ -44,6 +44,33 @@ def verify_semantic_integrity(text: str) -> bool:
     return True
 
 
+def is_fragment_tail(text: str) -> bool:
+    """检测文本是否以断句特征结尾——连接词、虚词、引述动词。"""
+    if not text:
+        return True
+    structural_tails = (
+        "和", "与", "及", "或", "但", "而", "且", "并",
+        "对", "为", "把", "被", "向", "从", "由", "在", "于", "就",
+        "将", "已", "的", "了", "着", "过",
+        "表示", "指出", "强调", "认为", "预计", "透露", "建议", "要求", "呼吁",
+        "警告", "回应", "介绍", "通报", "宣布", "称", "说", "据",
+        "因为", "所以", "如果", "那么", "虽然", "但是", "不仅", "而且",
+        "根据", "按照", "关于", "尽管", "不过",
+    )
+    text_stripped = text.replace("。", "").replace("，", "").replace("、", "").strip()
+    return text_stripped.endswith(structural_tails)
+
+
+def is_numeric_ending_fragment(text: str) -> bool:
+    """检测文本是否以突兀数字结尾——通常是截断信号。"""
+    if not text:
+        return False
+    clean = re.sub(r'[。！!？?]+$', '', text).strip()
+    if re.search(r'[\d.%]$', clean) and not re.search(r'[%％点倍成]$', clean):
+        return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 # STEP 1: URL 前馈合法性审查 — 彻底消灭灰色/空白死链
 # ---------------------------------------------------------------------------
@@ -298,6 +325,9 @@ def sanitize_news_item(rich_text):
     if len(title) > 10:
         # 条件 A: 标题大于 10 个字，触发总结熔断机制。只保留并写出原标题，content 留空，直接追加句号。
         title_text = re.sub(r'[。，,；;！!？?、\s：]+$', '', title)
+        # 断句拦截：标题以连接词/虚词/突兀数字结尾 → 判为截断碎片
+        if is_fragment_tail(title_text) or is_numeric_ending_fragment(title_text):
+            return "", ""
         if len(title_text) > 58:
             # 超长按子句边界截断，杜绝半句断句；无安全边界则整条判脏
             cut = max(title_text.rfind(p, 0, 55) for p in ["，", ",", "；", ";", "、"])
