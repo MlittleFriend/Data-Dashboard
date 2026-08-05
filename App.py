@@ -459,8 +459,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-
 # 聚合聚类与自适应双 Y 轴图表生成算法
 def cluster_series_by_magnitude(df, value_cols):
     """
@@ -499,8 +497,6 @@ def cluster_series_by_magnitude(df, value_cols):
         low_cols = []
         high_cols = sorted_cols
     return high_cols, low_cols
-
-
 def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y_title="", secondary_y_title=""):
     """
     自适应双 Y 轴多线绘制函数，适配典雅浅灰亮色视觉主题
@@ -616,8 +612,6 @@ def render_dual_axis_line_chart(df, date_col, value_cols, colors=None, primary_y
         tickfont=dict(color="#0f172a", size=10)
     )
     return fig
-
-
 def render_cpi_core_history_chart(df):
     """CPI 和核心 CPI 当月同比长历史走势 (口径: 经济数据一览 CPI 表 N/O 列, 2018 年中起, 直线连接)"""
     fig = go.Figure()
@@ -660,8 +654,6 @@ def render_cpi_core_history_chart(df):
         tickfont=dict(color="#0f172a", size=10)
     )
     return fig
-
-
 def render_pmi_new_orders_seasonal_chart(df):
     """全国制造业 PMI 新订单季节性叠放图 (口径: 经济数据一览 PMI 表 D 列, 按年份 2018 起叠放, X 轴 1-12 月)"""
     d = df.copy()
@@ -720,8 +712,6 @@ def render_pmi_new_orders_seasonal_chart(df):
         tickfont=dict(color="#0f172a", size=10)
     )
     return fig
-
-
 # 26630 底稿中未命名内嵌图表（Chart 13-20）的展示标题补全映射
 EMBEDDED_CHART_TITLE_OVERRIDES = {
     13: "社融分项同比多增（亿元）",
@@ -733,8 +723,6 @@ EMBEDDED_CHART_TITLE_OVERRIDES = {
     19: "M1、M2 同比增速（%）",
     20: "各主要行业工业增加值增速（%）",
 }
-
-
 def render_embedded_chart_by_id(df_embedded, cid):
     if df_embedded.empty or "chart_id" not in df_embedded.columns:
         return None
@@ -821,8 +809,6 @@ def render_embedded_chart_by_id(df_embedded, cid):
     fig.update_yaxes(showgrid=True, gridcolor="rgba(0, 0, 0, 0.08)", zeroline=False, linecolor="rgba(0, 0, 0, 0.15)", tickfont=dict(color="#0f172a", size=10), title_font=dict(color="#0f172a", size=11))
 
     return fig
-
-
 def load_listener_status():
     try:
         conn = sqlite3.connect("my_data.db", timeout=60.0)
@@ -846,8 +832,6 @@ def load_listener_status():
     except Exception as e:
         print(f"[UI Status Loader] Error loading listener status: {e}")
     return None
-
-
 # 2. 从数据库读取快讯、图表数据以及宏观分析 HTML 列表
 #    ttl=5 强制每次刷新都穿透缓存，直连物理数据库拉取最新手动追更文章卡片
 @st.cache_data(ttl=5)
@@ -1022,10 +1006,6 @@ def load_data(current_date_str):
         df_econ_series = df_econ_series[df_econ_series["date"] >= limit_date]
 
     return df_trend, df_cat, df_cpi_compare, df_coal_prices, df_food_prices, df_news, target_macro_html, df_inf_series, df_fis_series, df_fin_series, df_econ_series, df_gdp_series, df_deltas, df_embedded_charts, df_cpi_core_hist, df_pmi_orders_hist
-
-
-
-
 # 3. 控制论高频前馈守护线程：兼顾每日首次初始化探测与10分钟高频全球热点 Top 5 增量爬取
 def news_crawling_daemon():
     # 3.1 首次启动时的日常检测同步 (兼容原 `maybe_refresh_text_records` 行为)
@@ -1104,8 +1084,6 @@ def news_crawling_daemon():
             print(f"[Daemon High-Freq] News crawling daemon failed: {e}")
             
         time.sleep(600)  # 严格 10 分钟周期轮询
-
-
 # 启动后台守护线程
 threading.Thread(target=news_crawling_daemon, daemon=True).start()
 
@@ -1159,8 +1137,6 @@ threading.Thread(target=streamlit_keepalive_watchdog, daemon=True).start()
 
 # 启动 26630.xlsx 数据监听与自适应对齐引擎守护线程
 schema_aligner.start_file_watcher()
-
-
 # 3.3 实时文件变更与自适应自检网关 (Hot-Reload Watchdog & V1.3.0.0 Self-Inspection)
 try:
     if os.path.exists("26630.xlsx"):
@@ -1239,8 +1215,6 @@ df_fis_series_filtered = df_fis_series
 df_fin_series_filtered = df_fin_series
 df_econ_series_filtered = df_econ_series
 df_gdp_series_filtered = df_gdp_series
-
-
 # 5. 侧边栏/控制面板 (Sidebar Control Panel)
 st.sidebar.markdown('<div class="sidebar-title">🎛️ 观察哨控制台 / Controls</div>', unsafe_allow_html=True)
 
@@ -1288,19 +1262,6 @@ st.sidebar.markdown("""
     <span style="color: #16a34a; font-size: 0.72rem; font-weight: 700;">已联通 72 项专业金融投研 API 工具</span>
 </div>
 """, unsafe_allow_html=True)
-
-with st.sidebar.expander("🔍 进门 MCP 投研工具快速查询"):
-    mcp_query_code = st.text_input("股票/基金代码", value="sh600519", help="例如: sh600519 (贵州茅台) 或 sz300033")
-    if st.button("🚀 查询公司财务快照", key="btn_mcp_snap"):
-        try:
-            from external_skills.comein_research_mcp import comein_research_mcp
-            res_str = comein_research_mcp("call_tool", tool_name="get_financial_snapshot", arguments={"queries": [mcp_query_code]})
-            st.json(json.loads(res_str))
-        except Exception as e:
-            st.error(f"查询失败: {e}")
-
-
-
 # 6. 大屏看板头部 (Header Area with Self-Inspection Bar & Top Anchor)
 st.markdown("""
 <div id="top-anchor"></div>
@@ -1361,8 +1322,6 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
-
 # 7. 顶部大盘指标卡行 (Top Row: KPI Metrics Dashboards with Anchor Jump Links)
 # 7.1 计算通胀数据 KPI
 try:
@@ -1580,8 +1539,6 @@ def format_kpi_delta(delta, unit="%"):
         return d_class, f"{d_icon} {d_sign}{val_abs:.1f} 点 (较上月)"
     else:
         return d_class, f"{d_icon} {d_sign}{val_abs:.2f}% (较上月)"
-
-
 # 从各数据表的最大日期动态推导当前数据期（各数据区更新节奏不同，按区独立推导）
 def _derive_data_period(*dfs):
     date_maxes = []
@@ -1591,8 +1548,6 @@ def _derive_data_period(*dfs):
     if date_maxes:
         return max(date_maxes)
     return ""
-
-
 data_period = _derive_data_period(df_inf_series, df_fin_series, df_fis_series, df_econ_series) or datetime.now().strftime("%Y-%m")
 econ_period = _derive_data_period(df_econ_series) or data_period
 inf_period = _derive_data_period(df_inf_series) or data_period
@@ -2118,10 +2073,6 @@ with col_left:
         st.plotly_chart(fig_16, width='stretch', config={'displayModeBar': False})
 
     st.markdown('</div>', unsafe_allow_html=True)
-
-
-
-
 
 # 右半侧侧边栏：情报流与投研研究 (Live Info Feed & Deep Transmission)
 with col_right:
