@@ -2118,22 +2118,22 @@ with col_right:
                     content = ""
                     
                # =====================================================================
-                # V1.1.4.5: FILTERING DAMAGE GUARD & AUTOMATIC TEXT FALLBACK ENGINE
+                # V2.0: DISPLAY SANITIZER — 最小美化，不做结构性裁剪
                 # =====================================================================
-                # 1. 尝试执行前缀冒号噪声净化
-                clean_title = re.sub(r"^.*?[：:]\s*", "", str(title)).strip()
-                
-                # 2. 核心硬审计：如果剪辑后的标题短于12字，或未能通过主谓宾完备性断言，判定为误伤截断
-                if len(clean_title.replace("。", "").strip()) < 12 or not verify_semantic_integrity(clean_title):
-                    # 触发安全回滚：放弃激进裁剪版本，无条件强制回滚使用未被腰斩的原始完整文本
-                    display_text = str(title).strip()
+                # 上游 sanitize_news_item 已完成标题/正文拆分，这里只做表面清理：
+                # 1. 有 content 时用「标题：正文」完整句
+                # 2. 无 content 时直接用标题
+                # 3. 不在本层再做冒号切割——否则会丢掉主语造成"没头"断句
+                # =====================================================================
+                title_clean = str(title).strip()
+                content_clean = str(content).strip() if content and str(content).strip().lower() != "nan" else ""
+
+                if content_clean:
+                    # 有正文：拼接为完整的一句话
+                    display_text = f"{title_clean}：{content_clean}"
                 else:
-                    # 审计通过：使用净化后的高密度标题
-                    display_text = clean_title
-                
-                # 3. 如果标题处理后依然异常空滞，自动启用 content 作为二级兜底
-                if not display_text or display_text.strip().lower() in ["none", "nan", "null"]:
-                    display_text = str(content).strip() if content else "全球市场实时要闻"
+                    # 仅标题
+                    display_text = title_clean
                 # =====================================================================
                 
                 # 保证尾部以单个句号完结，彻底粉碎方括号与冒号尾缀
