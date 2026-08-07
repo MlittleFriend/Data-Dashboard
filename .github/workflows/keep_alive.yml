@@ -2,8 +2,10 @@ name: Streamlit Keep Alive
 
 on:
   schedule:
-    # 每 3 天的半夜 (UTC 00:00，北京时间早上 08:00) 自动触发一次
-    - cron: '0 0 */3 * *'
+    # 每 2 小时 ping 一次（Streamlit Cloud 实际休眠阈值远短于文档的 7 天，
+    # 社区反馈 12 小时甚至几小时无访问就会休眠；GitHub cron 本身可能延迟数十分钟，
+    # 2 小时间隔留有足够余量）
+    - cron: '17 */2 * * *'
   workflow_dispatch: # 允许在 GitHub 控制台上手动触发
 
 jobs:
@@ -12,4 +14,8 @@ jobs:
     steps:
       - name: Send HTTP request to wake up Streamlit app
         run: |
-          curl -I https://data-dashboard-4aa8egslexarg4fuezw2pk.streamlit.app/
+          # 用真实 GET（而非 HEAD）访问首页，确保计入活跃访问
+          curl -sS -o /dev/null -w "home: %{http_code}\n" \
+            https://data-dashboard-4aa8egslexarg4fuezw2pk.streamlit.app/
+          curl -sS -w "\nhealthz: %{http_code}\n" \
+            https://data-dashboard-4aa8egslexarg4fuezw2pk.streamlit.app/healthz
