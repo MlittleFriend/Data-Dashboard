@@ -14,8 +14,14 @@ jobs:
     steps:
       - name: Send HTTP request to wake up Streamlit app
         run: |
-          # 用真实 GET（而非 HEAD）访问首页，确保计入活跃访问
-          curl -sS -o /dev/null -w "home: %{http_code}\n" \
+          # 必须 -L 跟随跳转 + cookie jar：首页对匿名访问先 303 到
+          # share.streamlit.io/-/auth 建立会话再回跳，不跟随跳转的请求
+          # 会被边缘代理拦下，永远到不了应用容器（旧版 curl -I 即败于此）。
+          # 最终应输出 200 且带若干次 redirect 才算真正打到应用。
+          curl -sSL -c /tmp/st_cookies -b /tmp/st_cookies \
+            -o /dev/null \
+            -w "home: %{http_code} (redirects: %{num_redirects})\n" \
+            -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
             https://data-dashboard-4aa8egslexarg4fuezw2pk.streamlit.app/
           curl -sS -w "\nhealthz: %{http_code}\n" \
             https://data-dashboard-4aa8egslexarg4fuezw2pk.streamlit.app/healthz
